@@ -29,8 +29,8 @@ gui = ["fastapi>=0.110", "uvicorn>=0.27", "pywebview>=5.0"]
 dev = ["pytest>=8"]
 
 [project.urls]
-Homepage = "https://github.com/eugenionerelli/argano"
-Issues = "https://github.com/eugenionerelli/argano/issues"
+Homepage = "https://github.com/nerln/argano"
+Issues = "https://github.com/nerln/argano/issues"
 
 [project.scripts]
 argano = "argano.cli:main"
