@@ -132,12 +132,13 @@ def _make_video_codec(track: TrackProfile | None) -> VideoCodec | None:
     if track.slices_per_picture:
         codec.max_slices = track.slices_per_picture
     if track.largest_sample:
-        # Eight times the biggest frame the reference holds, and never less
-        # than one byte per pixel. The reference may be a short clip of a still
-        # scene while the damaged file holds fireworks, so the allowance has to
-        # be generous. It is still far below the point where a length read out
-        # of noise can pass as a frame.
-        codec.max_sample_size = max(track.largest_sample * 8, track.width * track.height)
+        # Four times the biggest frame the reference holds. Of every bound in
+        # the scan this is the one that earns its place, and it is worth being
+        # tight about. With it a fifteen minute recording came back whole in
+        # four seconds. Loosened to one byte per pixel, the same file took over
+        # ten minutes and lost most of itself: every false position was allowed
+        # to claim a larger piece, and the walk never recovered from the first.
+        codec.max_sample_size = track.largest_sample * 4
     return codec
 
 

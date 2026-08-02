@@ -921,20 +921,32 @@ export function frameLength(bytes, offset, config) {
  * the search steps forward and tries again, which is how a run of damage is
  * crossed rather than given in to.
  */
+/* How far to keep trying to pick the sound back up after damage. Past this,
+ * what is being walked is not damaged sound: it is the tail of a file after
+ * the last frame, or a stretch that was overwritten wholesale. Reading twelve
+ * megabytes of that one byte at a time is minutes of work for nothing. */
+const MAX_RESYNC_RUN = 256 * 1024;
+
 export function segment(bytes, config) {
   const frames = [];
   let skipped = 0;
   if (!bytes || typeof bytes.length !== 'number') return { frames, skipped };
 
   let position = 0;
+  let sinceAFrame = 0;
   while (position < bytes.length) {
     const size = frameLength(bytes, position, config);
     if (size > 0) {
       frames.push({ offset: position, size });
       position += size;
+      sinceAFrame = 0;
     } else {
       skipped += 1;
       position += 1;
+      if (++sinceAFrame > MAX_RESYNC_RUN) {
+        skipped += bytes.length - position;
+        break;
+      }
     }
   }
   return { frames, skipped };

@@ -46,6 +46,13 @@ LIBRARY_CANDIDATES = (
     "/usr/lib/aarch64-linux-gnu/libfaad.so.2",
 )
 
+# How far to keep trying to pick the sound back up after damage. Past this,
+# what is being walked is not damaged sound, it is something else: the tail of
+# a file after the last frame, or a stretch that was overwritten wholesale.
+# Without the bound, resynchronising through twelve megabytes of that means
+# millions of decoder calls and turns a repair into an afternoon.
+MAX_RESYNC_RUN = 256 << 10
+
 INSTALL_HINT = (
     "install faad2: `brew install faad2` on macOS, "
     "`apt install libfaad2` on Debian or Ubuntu"
@@ -177,6 +184,7 @@ class AacCodec(AudioCodec):
     def __init__(self) -> None:
         self._asc = b""
         self._element_types: Counter[int] = Counter()
+        self._live: _Decoder | None = None
 
     @property
     def available(self) -> bool:
@@ -216,38 +224,92 @@ class AacCodec(AudioCodec):
 
         frames: list[AudioFrame] = []
         skipped = 0
-        decoder = _Decoder(lib, self._asc)
         pos = 0
         size = len(data)
-        try:
-            while pos < size:
-                consumed, samples, error = decoder.decode(data, pos, size - pos)
-                if error == 0 and consumed > 0:
-                    frames.append(
-                        AudioFrame(base_offset + pos, consumed, self.samples_per_frame)
-                    )
-                    self._element_types[data[pos] >> 5] += 1
-                    pos += consumed
-                    continue
+        since_a_frame = 0
 
-                # Damage. Reopen, because this decoder's state is now worthless,
-                # and step forward to the next offset that could open a frame.
-                decoder.close()
-                step = self._next_candidate(data, pos + 1)
-                skipped += step - pos
-                pos = step
-                if pos >= size:
-                    break
-                decoder = _Decoder(lib, self._asc)
-        finally:
-            decoder.close()
+        # One decoder is kept across calls. The runs of sound in a file follow
+        # one another in time, so a decoder walking them in order is in exactly
+        # the state it should be. Opening a new one for every run is a
+        # millisecond each, which on a recording with fifteen thousand runs is
+        # a quarter of an hour spent on nothing.
+        while pos < size:
+            decoder = self._decoder()
+            if decoder is None:
+                skipped += size - pos
+                break
+            consumed, _samples, error = decoder.decode(data, pos, size - pos)
+
+            if error == 0 and consumed > 0:
+                if since_a_frame:
+                    # Coming out of damage. The decoder that just said yes has
+                    # read nonsense, and a decoder in that state says yes to
+                    # things it should not, so the answer is asked again of one
+                    # that has read nothing. Only the answers that survive that
+                    # second question are kept, and paying for a new decoder
+                    # here rather than at every byte of the search is the
+                    # difference between seconds and hours.
+                    self.reset()
+                    decoder = self._decoder()
+                    if decoder is None:
+                        skipped += size - pos
+                        break
+                    consumed, _samples, error = decoder.decode(data, pos, size - pos)
+                    if error != 0 or consumed <= 0:
+                        step = self._next_candidate(data, pos + 1)
+                        since_a_frame += step - pos
+                        skipped += step - pos
+                        pos = step
+                        if since_a_frame > MAX_RESYNC_RUN:
+                            skipped += size - pos
+                            break
+                        continue
+                frames.append(
+                    AudioFrame(base_offset + pos, consumed, self.samples_per_frame)
+                )
+                self._element_types[data[pos] >> 5] += 1
+                pos += consumed
+                since_a_frame = 0
+                continue
+
+            step = self._next_candidate(data, pos + 1)
+            since_a_frame += step - pos
+            skipped += step - pos
+            pos = step
+            if since_a_frame > MAX_RESYNC_RUN:
+                skipped += size - pos
+                break
+
         return frames, skipped
 
+    def _decoder(self) -> "_Decoder | None":
+        if self._live is None:
+            lib = _load_library()
+            if lib is None:
+                return None
+            try:
+                self._live = _Decoder(lib, self._asc)
+            except (ValueError, RuntimeError):
+                return None
+        return self._live
+
+    def reset(self) -> None:
+        """Throw the decoder away, so the next frame starts from nothing."""
+        if self._live is not None:
+            self._live.close()
+            self._live = None
+
     def boundaries(self, data: bytes, start: int, limit: int):
+        # A fresh decoder every time, because this is asked speculatively about
+        # a stretch that may not be sound at all, and a decoder that has read
+        # nonsense answers wrongly ever after.
         lib = _load_library()
         if lib is None or not self._asc:
             return
-        decoder = _Decoder(lib, self._asc)
+        try:
+            decoder = _Decoder(lib, self._asc)
+        except (ValueError, RuntimeError):
+            return
         try:
             pos = start
             while pos < limit:
