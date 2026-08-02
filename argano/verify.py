@@ -152,7 +152,8 @@ def _check_track(
             f"{label} has {len(sizes)} samples but timings for {duration_count}"
         )
 
-    counted = _samples_from_stsc(stsc, len(chunks))
+    per_chunk = _expand_stsc(stsc, len(chunks))
+    counted = sum(per_chunk)
     if counted != len(sizes):
         report.error(
             f"{label} says {len(sizes)} samples and its chunk map accounts for {counted}"
@@ -163,9 +164,9 @@ def _check_track(
     media_end = mdat.end
     index = 0
     for chunk_number, offset in enumerate(chunks, start=1):
-        per_chunk = _samples_in_chunk(stsc, chunk_number)
+        count = per_chunk[chunk_number - 1]
         position = offset
-        for _ in range(per_chunk):
+        for _ in range(count):
             if index >= len(sizes):
                 break
             position += sizes[index]
@@ -282,18 +283,24 @@ def _read_stts(fh, stts: Box | None) -> tuple[int, int]:
     return total, samples
 
 
-def _samples_in_chunk(stsc: list[tuple[int, int]], chunk_number: int) -> int:
-    result = 0
-    for first, per_chunk in stsc:
-        if first <= chunk_number:
-            result = per_chunk
-        else:
-            break
-    return result
+def _expand_stsc(stsc: list[tuple[int, int]], chunk_count: int) -> list[int]:
+    """How many samples each chunk holds, worked out once.
 
-
-def _samples_from_stsc(stsc: list[tuple[int, int]], chunk_count: int) -> int:
-    return sum(_samples_in_chunk(stsc, n) for n in range(1, chunk_count + 1))
+    The table is run length encoded: an entry says "from this chunk onwards,
+    this many each". Looking a chunk up by walking the entries is fine for one
+    lookup and quadratic for all of them, and a fifteen minute recording has
+    tens of thousands of chunks. Reading it once into a list turns minutes of
+    checking into milliseconds.
+    """
+    per_chunk = [0] * chunk_count
+    if not stsc:
+        return per_chunk
+    for position, (first, count) in enumerate(stsc):
+        start = max(1, first)
+        stop = stsc[position + 1][0] if position + 1 < len(stsc) else chunk_count + 1
+        for chunk in range(start, min(stop, chunk_count + 1)):
+            per_chunk[chunk - 1] = count
+    return per_chunk
 
 
 def verify_decode(path: Path, timeout: int = 3600) -> VerifyReport:
