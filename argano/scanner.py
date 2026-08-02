@@ -61,6 +61,9 @@ STRONGER_LOOKAHEAD = 16 << 10
 # A ceiling on the expensive last-resort test, so a stretch of noise cannot
 # turn one gap into minutes of work.
 MAX_CHAIN_ATTEMPTS = 400
+# How far to keep looking after the near tests have given up. Past this the
+# honest answer is that no further frames were found.
+FAR_SEARCH = 16 << 20
 
 
 @dataclass
@@ -162,16 +165,16 @@ class MediaScanner:
         video_codec: VideoCodec | None,
         has_audio: bool,
         confirm: int = CONFIRM_SAMPLES,
-        audio_fits=None,
+        audio_boundaries=None,
     ) -> None:
         self.data = data
         self.codec = video_codec
         self.has_audio = has_audio
         self.confirm = confirm
-        # Asks whether a stretch of bytes is exactly a whole number of audio
-        # frames. Optional, and the scan is much better at fine interleaving
+        # Lists the offsets where audio frames end, walking forward from a
+        # point. Optional, and the scan is much better at fine interleaving
         # when it is there. See `_find_restart`.
-        self.audio_fits = audio_fits
+        self.audio_boundaries = audio_boundaries
         self._pattern = candidate_pattern_for(video_codec) if video_codec else None
 
     def scan(self, start: int, end: int, progress=None) -> ScanResult:
@@ -275,64 +278,60 @@ class MediaScanner:
         it costs minutes per occurrence.
         """
         assert self._pattern is not None
-        for window in self._windows(gap_start, start, end):
-            found = self._search(start, window, end, gap_start)
+        for window, thorough in self._windows(gap_start, start, end):
+            found = self._search(start, window, end, gap_start, thorough)
             if found is not None:
                 return found
         return None
 
-    def _windows(self, gap_start: int, start: int, end: int) -> list[int]:
-        """Widening bounds for the search, nearest first.
+    def _windows(self, gap_start: int, start: int, end: int) -> list[tuple[int, bool]]:
+        """Widening bounds for the search, nearest first, with what to spend.
 
-        The first is the width of a plausible interleaved run. Almost every
-        restart is in there, and keeping the first look that tight is what
-        stops a weaker piece of evidence a few hundred bytes away from beating
-        the strong one just behind it. The rest exist for damage, where the
-        next real frame can be a long way off.
+        Almost every restart is inside the first bound, which is the width of a
+        plausible interleaved run. Keeping that first look tight is what stops
+        weaker evidence a few hundred bytes away from beating the strong
+        evidence just behind it.
+
+        Past the second bound only the cheap test runs. Asking for several
+        frames in a row across thirty megabytes means a hundred thousand header
+        parses, and it is asked once per gap: on a recording with fifteen
+        thousand gaps that is the difference between a minute and an afternoon.
+        The far search is for damage, and the pattern test is the one that
+        answers for damage anyway.
         """
-        bounds = [gap_start + AUDIO_FIT_LIMIT, start + (1 << 20), start + (32 << 20)]
-        out = [min(b, end) for b in bounds if b > start]
-        out.append(end)
-        seen: list[int] = []
-        for bound in out:
-            if bound > (seen[-1] if seen else 0):
-                seen.append(bound)
-        return seen
+        bounds = [
+            (min(gap_start + AUDIO_FIT_LIMIT, end), True),
+            (min(start + (1 << 20), end), True),
+            (min(start + FAR_SEARCH, end), False),
+        ]
+        out: list[tuple[int, bool]] = []
+        for bound, thorough in bounds:
+            if bound > start and (not out or bound > out[-1][0]):
+                out.append((bound, thorough))
+        return out
 
-    def _search(self, start: int, window: int, end: int, gap_start: int) -> int | None:
+    def _search(
+        self, start: int, window: int, end: int, gap_start: int, thorough: bool = True
+    ) -> int | None:
         """Earliest restart in [start, window), strongest evidence first.
 
-        The order of the tests is the point. All of them can be true at once,
-        and the weak ones are true by accident more often than they should be:
-        any position sitting on an audio frame boundary satisfies the second
+        The order matters. All three tests can be true at once, and the weaker
+        ones are true by accident more often than they should be: a position
+        that happens to sit on an audio frame boundary satisfies the second
         test, and a few of those also read as a single frame. Letting that win
         over several frames back to back a little further on is how a scan
         walks into the middle of a run and reports the rest as damage.
-
-        Once the weaker test has an answer, the search only looks a little
-        further for a stronger one and then stops. Reading the whole window
-        every time is what the first version did, and on a file with fifteen
-        thousand interleaved runs it turned a job of about a minute into most
-        of an hour.
         """
-        fitted: int | None = None
-        for match in self._pattern.finditer(self.data, start, window):
-            offset = match.start()
-            if fitted is not None and offset > fitted + STRONGER_LOOKAHEAD:
-                break
-            run = self._consecutive(offset, end)
-            if run >= self.confirm:
-                return offset
-            if (
-                fitted is None
-                and run >= 1
-                and self.audio_fits is not None
-                and offset - gap_start <= AUDIO_FIT_LIMIT
-                and self.audio_fits(gap_start, offset)
-            ):
-                fitted = offset
-        if fitted is not None:
-            return fitted
+        fitted = None
+        if thorough:
+            fitted = self._audio_answer(gap_start, min(window, gap_start + AUDIO_FIT_LIMIT), end)
+            limit = window if fitted is None else min(window, fitted + STRONGER_LOOKAHEAD)
+            for match in self._pattern.finditer(self.data, start, limit):
+                offset = match.start()
+                if self._consecutive(offset, end) >= self.confirm:
+                    return offset
+            if fitted is not None:
+                return fitted
 
         attempts = 0
         for match in self._pattern.finditer(self.data, start, window):
@@ -347,6 +346,23 @@ class MediaScanner:
                 break
             if self._chain(offset, end) >= self.confirm:
                 return offset
+        return None
+
+    def _audio_answer(self, gap_start: int, limit: int, end: int) -> int | None:
+        """Where the run of sound ends, according to the sound itself.
+
+        A gap between two runs of video is a whole number of audio frames,
+        because that is what interleaving means. Walking those frames once and
+        stopping at the first boundary that also reads as a video sample
+        answers the question in one pass over the gap.
+        """
+        if self.audio_boundaries is None or limit <= gap_start:
+            return None
+        for boundary in self.audio_boundaries(gap_start, limit):
+            if boundary <= gap_start or boundary >= end:
+                break
+            if self.codec.try_sample(self.data, boundary, end) is not None:
+                return boundary
         return None
 
     def _chain(self, offset: int, end: int) -> int:

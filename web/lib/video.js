@@ -25,6 +25,12 @@ const HEADER_SCAN = 64;
  * read out of something that is not video. */
 const MAX_PREFIX_NAL = 64 * 1024;
 const MAX_NAL = 64 * 1024 * 1024;
+/* A picture is introduced by a handful of small units. Without a ceiling on
+ * how many, a run of noise can supply a hundred and the sample comes out
+ * megabytes long with no picture in it. */
+const MAX_PREFIX_NALS = 8;
+const MAX_PREFIX_BYTES = 128 * 1024;
+const MAX_SLICES_PER_PICTURE = 64;
 
 const H264_VCL = new Set([1, 2, 3, 4, 5]);
 const H264_KNOWN = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20]);
@@ -41,9 +47,23 @@ export class H264 {
     this.nalLengthSize = 4;
     this.sps = new Map();
     this.pps = new Map();
+    this.maxSlices = MAX_SLICES_PER_PICTURE;
+    this.maxSampleSize = 0;
   }
 
   get configured() { return this.sps.size > 0 && this.pps.size > 0; }
+
+  /* The largest a single frame may be. Without a ceiling, four bytes of noise
+   * read as a length of nine megabytes and the walk accepts a frame that is
+   * not there, swallowing everything after it. The bound comes from the
+   * reference when there is one. Failing that it comes from the picture: a
+   * compressed frame cannot be larger than the same picture uncompressed. */
+  get sampleCeiling() {
+    if (this.maxSampleSize) return this.maxSampleSize;
+    const sps = this.sps.values().next().value;
+    if (sps && sps.width && sps.height) return Math.max(1 << 20, sps.width * sps.height * 3);
+    return MAX_NAL;
+  }
 
   get maxPocLsb() {
     const first = this.sps.values().next().value;
@@ -98,11 +118,15 @@ export class H264 {
     let pos = offset;
     let seenVcl = false;
     let first = null;
+    let slices = 0;
+    let lastFirstMb = -1;
+    let prefixNals = 0;
+    let prefixBytes = 0;
 
     while (pos + ls + 1 <= end) {
       let length = 0;
       for (let i = 0; i < ls; i++) length = length * 256 + data[pos + i];
-      if (length < 1 || length > MAX_NAL) break;
+      if (length < 1 || length > this.sampleCeiling) break;
       const nalEnd = pos + ls + length;
       if (nalEnd > end) break;
 
@@ -113,6 +137,9 @@ export class H264 {
 
       if (!seenVcl && !H264_VCL.has(type)) {
         if (!H264_PREFIX.has(type) || length > MAX_PREFIX_NAL) break;
+        prefixNals++;
+        prefixBytes += length;
+        if (prefixNals > MAX_PREFIX_NALS || prefixBytes > MAX_PREFIX_BYTES) return null;
       }
 
       if (H264_VCL.has(type)) {
@@ -120,9 +147,17 @@ export class H264 {
         if (!parsed) break;
         if (seenVcl) {
           if (parsed.firstMb === 0) break;   // the next picture starts here
+          /* Later pieces of one picture have to agree with the first about
+           * which picture it is, and each has to start after the one before.
+           * Without that, any bytes that read as a slice header keep extending
+           * the sample. */
+          if (parsed.firstMb <= lastFirstMb) break;
+          if (parsed.frameNum !== first.frameNum || parsed.poc !== first.poc) break;
+          if (++slices > this.maxSlices) break;
         } else if (parsed.firstMb !== 0) {
           return null;                       // a sample cannot begin mid-picture
         }
+        lastFirstMb = parsed.firstMb;
         if (!seenVcl) {
           first = { sync: type === 5, poc: parsed.poc, frameNum: parsed.frameNum,
                     reference: ((header >> 5) & 3) > 0 };
@@ -154,6 +189,9 @@ export class H264 {
       if (!pps) return null;
       const sps = this.sps.get(pps.spsId);
       if (!sps) return null;
+      /* A slice cannot start past the end of the picture it belongs to. That
+       * one bound stops a walk from stringing imaginary slices together. */
+      if (firstMb >= sps.pictureMacroblocks) return null;
 
       if (sps.separateColourPlane) r.u(2);
       const frameNum = r.u(sps.log2MaxFrameNum);
@@ -211,6 +249,7 @@ function parseH264Sps(nal) {
   if (!sps.frameMbsOnly) r.u(1);
   sps.width = widthMbs * 16;
   sps.height = heightUnits * 16 * (2 - sps.frameMbsOnly);
+  sps.pictureMacroblocks = widthMbs * heightUnits * (2 - sps.frameMbsOnly);
   return sps;
 }
 
@@ -230,9 +269,18 @@ export class Hevc {
     this.nalLengthSize = 4;
     this.sps = new Map();
     this.pps = new Map();
+    this.maxSlices = MAX_SLICES_PER_PICTURE;
+    this.maxSampleSize = 0;
   }
 
   get configured() { return this.sps.size > 0 && this.pps.size > 0; }
+
+  get sampleCeiling() {
+    if (this.maxSampleSize) return this.maxSampleSize;
+    const sps = this.sps.values().next().value;
+    if (sps && sps.width && sps.height) return Math.max(1 << 20, sps.width * sps.height * 3);
+    return MAX_NAL;
+  }
 
   get maxPocLsb() {
     const first = this.sps.values().next().value;
@@ -280,11 +328,14 @@ export class Hevc {
     let pos = offset;
     let seenVcl = false;
     let first = null;
+    let slices = 0;
+    let prefixNals = 0;
+    let prefixBytes = 0;
 
     while (pos + ls + 2 <= end) {
       let length = 0;
       for (let i = 0; i < ls; i++) length = length * 256 + data[pos + i];
-      if (length < 2 || length > MAX_NAL) break;
+      if (length < 2 || length > this.sampleCeiling) break;
       const nalEnd = pos + ls + length;
       if (nalEnd > end) break;
 
@@ -298,6 +349,9 @@ export class Hevc {
       const isVcl = type < 32;
       if (!seenVcl && !isVcl) {
         if (!HEVC_PREFIX.has(type) || length > MAX_PREFIX_NAL) break;
+        prefixNals++;
+        prefixBytes += length;
+        if (prefixNals > MAX_PREFIX_NALS || prefixBytes > MAX_PREFIX_BYTES) return null;
       }
 
       if (isVcl) {
@@ -305,6 +359,7 @@ export class Hevc {
         if (!parsed) break;
         if (seenVcl) {
           if (parsed.firstInPic) break;
+          if (++slices > this.maxSlices) break;
         } else if (!parsed.firstInPic) {
           return null;
         }

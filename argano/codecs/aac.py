@@ -243,6 +243,22 @@ class AacCodec(AudioCodec):
             decoder.close()
         return frames, skipped
 
+    def boundaries(self, data: bytes, start: int, limit: int):
+        lib = _load_library()
+        if lib is None or not self._asc:
+            return
+        decoder = _Decoder(lib, self._asc)
+        try:
+            pos = start
+            while pos < limit:
+                consumed, _samples, error = decoder.decode(data, pos, limit - pos)
+                if error != 0 or consumed <= 0:
+                    return
+                pos += consumed
+                yield pos
+        finally:
+            decoder.close()
+
     def _next_candidate(self, data: bytes, start: int) -> int:
         """Next offset whose first element type matches what this file uses."""
         allowed = {value for value, count in self._element_types.items() if count > 4}
@@ -418,6 +434,12 @@ class PcmCodec(AudioCodec):
 
     def configure(self, config: bytes) -> None:
         return
+
+    def boundaries(self, data: bytes, start: int, limit: int):
+        pos = start + self.frame_size
+        while pos <= limit:
+            yield pos
+            pos += self.frame_size
 
     def segment(self, data: bytes, base_offset: int) -> tuple[list[AudioFrame], int]:
         count = len(data) // self.frame_size

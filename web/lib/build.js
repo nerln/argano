@@ -43,6 +43,24 @@ export function readProfile(data) {
   return profile;
 }
 
+/* The biggest frame the reference holds. It becomes the ceiling on what counts
+ * as a frame in the damaged file, and that ceiling is what stops four bytes of
+ * noise being read as a length of nine megabytes. */
+function largestSampleSize(data, stbl) {
+  const stsz = findBox(stbl.children, 'stsz');
+  if (!stsz) return 0;
+  const p = data.subarray(stsz.payload, stsz.end);
+  if (p.length < 12) return 0;
+  const uniform = readU32(p, 4);
+  const count = Math.min(readU32(p, 8), 20000);
+  if (uniform) return uniform;
+  let most = 0;
+  for (let i = 0; i < count && 12 + i * 4 + 4 <= p.length; i++) {
+    most = Math.max(most, readU32(p, 12 + i * 4));
+  }
+  return most;
+}
+
 function slice(data, node) {
   return node ? data.slice(node.offset, node.end) : null;
 }
@@ -91,6 +109,7 @@ function readTrack(data, trak, movieTimescale) {
     sgpd: slice(data, findBox(stbl.children, 'sgpd')),
     encoderDelay: 0,
     emptyEdit: 0,
+    largestSample: largestSampleSize(data, stbl),
   };
   readEditList(data, trak, track);
   return track;

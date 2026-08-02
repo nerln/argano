@@ -49,6 +49,14 @@ HEADER_SCAN_BYTES = 64
 # The largest a parameter set or SEI is allowed to be before it stops being
 # believable. Real ones are tens of bytes.
 MAX_PREFIX_NAL = 64 << 10
+# A picture split into more pieces than this is not something a camera or a
+# screen recorder writes. The bound matters because every extra piece accepted
+# on bad bytes makes the sample longer.
+MAX_SLICES_PER_PICTURE = 64
+# Units that introduce a picture: parameter sets, access unit delimiters and
+# supplemental information. Real ones come in ones and twos.
+MAX_PREFIX_NALS = 8
+MAX_PREFIX_BYTES = 128 << 10
 
 
 class SequenceParameterSet:
@@ -100,6 +108,28 @@ class SequenceParameterSet:
 
         self.width = width_mbs * 16
         self.height = height_map_units * 16 * (2 - self.frame_mbs_only_flag)
+        # How many macroblocks a picture has. A slice cannot start past the end
+        # of the picture it belongs to, and that one bound is what stops a walk
+        # from stringing together imaginary slices for fourteen megabytes.
+        self.picture_macroblocks = width_mbs * height_map_units * (2 - self.frame_mbs_only_flag)
+
+    @property
+    def sample_ceiling(self) -> int:
+        """The largest a single frame is allowed to be.
+
+        Without a ceiling, four bytes of noise read as a length of nine
+        megabytes and the walk accepts a frame that is not there, swallowing
+        everything after it. The bound is taken from the reference when there
+        is one. Failing that it comes from the picture itself: a compressed
+        frame cannot be larger than the same picture uncompressed, and that is
+        true of every encoder there is.
+        """
+        if self.max_sample_size:
+            return self.max_sample_size
+        sps = next(iter(self.sps.values()), None)
+        if sps is not None and sps.width and sps.height:
+            return max(1 << 20, sps.width * sps.height * 3)
+        return self._max_nal
 
     @property
     def max_poc_lsb(self) -> int:
@@ -126,6 +156,8 @@ class H264Codec(VideoCodec):
         self.nal_length_size = 4
         self.sps: dict[int, SequenceParameterSet] = {}
         self.pps: dict[int, PictureParameterSet] = {}
+        self.max_slices = MAX_SLICES_PER_PICTURE
+        self.max_sample_size = 0     # 0 means work it out from the picture size
         self._max_nal = 32 << 20
 
     # --- configuration ---
@@ -182,6 +214,24 @@ class H264Codec(VideoCodec):
         raise NotImplementedError("configuration is copied from the source, not rebuilt")
 
     @property
+    def sample_ceiling(self) -> int:
+        """The largest a single frame is allowed to be.
+
+        Without a ceiling, four bytes of noise read as a length of nine
+        megabytes and the walk accepts a frame that is not there, swallowing
+        everything after it. The bound is taken from the reference when there
+        is one. Failing that it comes from the picture itself: a compressed
+        frame cannot be larger than the same picture uncompressed, and that is
+        true of every encoder there is.
+        """
+        if self.max_sample_size:
+            return self.max_sample_size
+        sps = next(iter(self.sps.values()), None)
+        if sps is not None and sps.width and sps.height:
+            return max(1 << 20, sps.width * sps.height * 3)
+        return self._max_nal
+
+    @property
     def max_poc_lsb(self) -> int:
         sps = next(iter(self.sps.values()), None)
         return sps.max_poc_lsb if sps else 0
@@ -217,10 +267,14 @@ class H264Codec(VideoCodec):
         seen_vcl = False
         first: tuple[int, int, bool, int | None] | None = None
         first_frame_num: int | None = None
+        slices = 0
+        last_first_mb = -1
+        prefix_nals = 0
+        prefix_bytes = 0
 
         while pos + ls + 1 <= n:
             length = int.from_bytes(data[pos : pos + ls], "big")
-            if length < 1 or length > self._max_nal:
+            if length < 1 or length > self.sample_ceiling:
                 break
             end = pos + ls + length
             if end > n:
@@ -241,6 +295,14 @@ class H264Codec(VideoCodec):
                 # read out of something that is not video.
                 if nal_type not in AU_PREFIX_TYPES or length > MAX_PREFIX_NAL:
                     break
+                prefix_nals += 1
+                prefix_bytes += length
+                # A picture is introduced by a handful of small units.
+                # Without a ceiling on how many, a run of noise can
+                # supply a hundred of them and the sample comes out
+                # megabytes long with no picture in it at all.
+                if prefix_nals > MAX_PREFIX_NALS or prefix_bytes > MAX_PREFIX_BYTES:
+                    return None
 
             if nal_type in VCL_TYPES:
                 parsed = self._read_slice_header(
@@ -252,8 +314,22 @@ class H264Codec(VideoCodec):
                 if seen_vcl:
                     if first_mb == 0:
                         break          # the next picture starts here
+                    # Later pieces of one picture have to agree with the first
+                    # piece about which picture it is, and each has to start
+                    # after the one before. Without that, any bytes that happen
+                    # to read as a slice header keep extending the sample, and
+                    # a run of sound after the last real slice can add twenty
+                    # megabytes to a frame that is twenty-six kilobytes long.
+                    if first_mb <= last_first_mb:
+                        break
+                    if frame_num != first_frame_num or poc != first[3]:
+                        break
+                    slices += 1
+                    if slices > self.max_slices:
+                        break
                 elif first_mb != 0:
                     return None        # a sample cannot begin mid-picture
+                last_first_mb = first_mb
                 if not seen_vcl:
                     first = (nal_type, slice_type, nal_ref_idc > 0, poc)
                     first_frame_num = frame_num
@@ -308,6 +384,8 @@ class H264Codec(VideoCodec):
                 return None
             sps = self.sps.get(pps.sps_id)
             if sps is None:
+                return None
+            if first_mb >= sps.picture_macroblocks:
                 return None
 
             if sps.separate_colour_plane_flag:

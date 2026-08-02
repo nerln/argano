@@ -50,6 +50,8 @@ class TrackProfile:
     sbgp_template: bytes | None = None
     encoder_delay: int = 0           # priming samples an edit list should skip
     empty_edit: int = 0              # movie-timescale ticks before the track starts
+    slices_per_picture: int = 0      # 0 when it was not worked out
+    largest_sample: int = 0          # the biggest frame the reference contains
     samples_per_chunk: list[int] = field(default_factory=list)
 
 
@@ -175,7 +177,118 @@ def _read_track(fh, trak: Box, movie_timescale: int) -> TrackProfile | None:
     )
     _read_edit_list(fh, trak, track, movie_timescale)
     track.samples_per_chunk = _read_chunk_shape(fh, stbl)
+    if handler == "vide":
+        track.slices_per_picture = _count_slices_per_picture(fh, stbl, track)
+        sizes = _read_sizes(fh, stbl.find("stsz"))
+        track.largest_sample = max(sizes) if sizes else 0
     return track
+
+
+def _count_slices_per_picture(fh, stbl: Box, track: TrackProfile) -> int:
+    """How many pieces this encoder cuts a picture into.
+
+    Almost every camera and screen recorder writes one, and knowing that makes
+    reading the damaged file exact: a frame ends after its first slice and
+    nothing else can be added to it. Without the answer the walk has to allow
+    for more pieces, and a run of sound after the last real slice will
+    sometimes read as another one, which is how a frame of twenty-six
+    kilobytes comes out twenty megabytes long.
+
+    The reference file has an index, so the question can simply be looked up:
+    take a few of its samples and count the slices inside them.
+    """
+    sizes = _read_sizes(fh, stbl.find("stsz"))
+    offsets = _read_offsets(fh, stbl)
+    counts = _read_stsc(fh, stbl.find("stsc"))
+    if not sizes or not offsets or not counts:
+        return 0
+
+    length_size = 4
+    if track.codec_config and len(track.codec_config) > 4:
+        if track.fourcc in (b"hvc1", b"hev1"):
+            length_size = (track.codec_config[21] & 3) + 1 if len(track.codec_config) > 21 else 4
+        else:
+            length_size = (track.codec_config[4] & 3) + 1
+    is_hevc = track.fourcc in (b"hvc1", b"hev1")
+
+    most = 0
+    index = 0
+    for chunk_number, chunk_offset in enumerate(offsets[:8], start=1):
+        per_chunk = _samples_in_chunk(counts, chunk_number)
+        position = chunk_offset
+        for _ in range(per_chunk):
+            if index >= len(sizes) or index >= 40:
+                return most
+            fh.seek(position)
+            sample = fh.read(sizes[index])
+            most = max(most, _count_slices(sample, length_size, is_hevc))
+            position += sizes[index]
+            index += 1
+    return most
+
+
+def _count_slices(sample: bytes, length_size: int, is_hevc: bool) -> int:
+    slices = 0
+    pos = 0
+    while pos + length_size + 2 <= len(sample):
+        length = int.from_bytes(sample[pos : pos + length_size], "big")
+        if length <= 0 or pos + length_size + length > len(sample):
+            break
+        header = sample[pos + length_size]
+        nal_type = ((header >> 1) & 0x3F) if is_hevc else (header & 0x1F)
+        if (is_hevc and nal_type < 32) or (not is_hevc and 1 <= nal_type <= 5):
+            slices += 1
+        pos += length_size + length
+    return slices
+
+
+def _read_sizes(fh, stsz: Box | None) -> list[int]:
+    if stsz is None:
+        return []
+    payload = read_box_payload(fh, stsz)
+    if len(payload) < 12:
+        return []
+    uniform, count = struct.unpack(">II", payload[4:12])
+    count = min(count, 64)
+    if uniform:
+        return [uniform] * count
+    return list(struct.unpack(f">{count}I", payload[12 : 12 + count * 4]))
+
+
+def _read_offsets(fh, stbl: Box) -> list[int]:
+    stco = stbl.find("stco")
+    if stco is not None:
+        payload = read_box_payload(fh, stco)
+        count = min(struct.unpack(">I", payload[4:8])[0], 8)
+        return list(struct.unpack(f">{count}I", payload[8 : 8 + count * 4]))
+    co64 = stbl.find("co64")
+    if co64 is not None:
+        payload = read_box_payload(fh, co64)
+        count = min(struct.unpack(">I", payload[4:8])[0], 8)
+        return list(struct.unpack(f">{count}Q", payload[8 : 8 + count * 8]))
+    return []
+
+
+def _read_stsc(fh, stsc: Box | None) -> list[tuple[int, int]]:
+    if stsc is None:
+        return []
+    payload = read_box_payload(fh, stsc)
+    count = min(struct.unpack(">I", payload[4:8])[0], 64)
+    out = []
+    for i in range(count):
+        first, per_chunk, _ = struct.unpack(">III", payload[8 + i * 12 : 20 + i * 12])
+        out.append((first, per_chunk))
+    return out
+
+
+def _samples_in_chunk(entries: list[tuple[int, int]], chunk_number: int) -> int:
+    result = 0
+    for first, per_chunk in entries:
+        if first <= chunk_number:
+            result = per_chunk
+        else:
+            break
+    return result
 
 
 def _first_sample_entry(fh, stsd: Box):

@@ -83,6 +83,18 @@ class AudioCodec:
         """
         raise NotImplementedError
 
+    def boundaries(self, data: bytes, start: int, limit: int):
+        """Yield the offset after each frame, walking forward from `start`.
+
+        The scanner uses this to find where a run of sound ends. Asking
+        "is this stretch a whole number of frames" once per candidate position
+        means decoding the same bytes over and over: on a finely interleaved
+        recording that is tens of thousands of decoder lifetimes and turns a
+        job of one minute into ten. Walking the frames once and offering each
+        boundary is the same question asked the cheap way round.
+        """
+        raise NotImplementedError
+
     @property
     def available(self) -> bool:
         """False when the machine is missing what this needs to run."""

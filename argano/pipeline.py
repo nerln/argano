@@ -129,6 +129,15 @@ def _make_video_codec(track: TrackProfile | None) -> VideoCodec | None:
     codec = factory()
     if track.codec_config:
         codec.configure(track.codec_config)
+    if track.slices_per_picture:
+        codec.max_slices = track.slices_per_picture
+    if track.largest_sample:
+        # Eight times the biggest frame the reference holds, and never less
+        # than one byte per pixel. The reference may be a short clip of a still
+        # scene while the damaged file holds fireworks, so the allowance has to
+        # be generous. It is still far below the point where a length read out
+        # of noise can pass as a frame.
+        codec.max_sample_size = max(track.largest_sample * 8, track.width * track.height)
     return codec
 
 
@@ -200,7 +209,7 @@ def repair(
                 video_codec,
                 has_audio=audio_codec is not None,
                 confirm=options.confirm_samples,
-                audio_fits=_audio_fitter(data, audio_codec),
+                audio_boundaries=_audio_boundaries(data, audio_codec),
             )
             scan = walker.scan(diagnosis.media_start, diagnosis.media_end, progress=on_scan)
             result.scan = scan
@@ -249,39 +258,15 @@ def repair(
     return result
 
 
-def _audio_fitter(data, audio_codec: AudioCodec | None):
-    """Ask whether a stretch of bytes is exactly a whole number of audio frames.
-
-    This is what lets the scan follow a finely interleaved file, where a run of
-    video is a single frame and three in a row are never available to confirm
-    against. The answer has to be exact: frames that decode and then leave a
-    few bytes over means the end of the run was guessed wrong.
-
-    The results are remembered because the scan asks about the same stretch
-    more than once, and each answer costs a decoder.
-    """
+def _audio_boundaries(data, audio_codec: AudioCodec | None):
+    """Give the scanner a way to walk the frame boundaries of a run of sound."""
     if audio_codec is None or not audio_codec.available:
         return None
 
-    cache: dict[tuple[int, int], bool] = {}
+    def walk(start: int, limit: int):
+        return audio_codec.boundaries(data, start, limit)
 
-    def fits(start: int, stop: int) -> bool:
-        if stop <= start:
-            return False
-        span = (start, stop)
-        hit = cache.get(span)
-        if hit is not None:
-            return hit
-        try:
-            frames, skipped = audio_codec.segment(data[start:stop], start)
-        except (RuntimeError, ValueError):
-            frames, skipped = [], 1
-        answer = bool(frames) and skipped == 0
-        if len(cache) < 200_000:
-            cache[span] = answer
-        return answer
-
-    return fits
+    return walk
 
 
 def _segment_audio(

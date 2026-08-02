@@ -251,6 +251,12 @@ function makeVideoCodec(track) {
   }
   const codec = new Factory();
   if (track.codecConfig && track.codecConfig.length) codec.configure(track.codecConfig);
+  if (track.largestSample) {
+    /* Eight times the biggest frame the reference holds, and never less than
+     * one byte per pixel. The reference may be a short clip of a still scene
+     * while the damaged file holds fireworks, so the allowance is generous. */
+    codec.maxSampleSize = Math.max(track.largestSample * 8, track.width * track.height);
+  }
   return codec;
 }
 

@@ -40,6 +40,11 @@ AU_PREFIX_TYPES = frozenset({NAL_VPS, NAL_SPS, NAL_PPS, NAL_AUD, NAL_PREFIX_SEI}
 
 HEADER_SCAN_BYTES = 64
 MAX_PREFIX_NAL = 64 << 10
+MAX_SLICES_PER_PICTURE = 64
+# Units that introduce a picture: parameter sets, access unit delimiters and
+# supplemental information. Real ones come in ones and twos.
+MAX_PREFIX_NALS = 8
+MAX_PREFIX_BYTES = 128 << 10
 
 
 def _skip_profile_tier_level(r: BitReader, max_sub_layers_minus1: int) -> None:
@@ -93,6 +98,24 @@ class HevcSps:
             raise BitstreamError("log2_max_pic_order_cnt_lsb out of range")
 
     @property
+    def sample_ceiling(self) -> int:
+        """The largest a single frame is allowed to be.
+
+        Without a ceiling, four bytes of noise read as a length of nine
+        megabytes and the walk accepts a frame that is not there, swallowing
+        everything after it. The bound is taken from the reference when there
+        is one. Failing that it comes from the picture itself: a compressed
+        frame cannot be larger than the same picture uncompressed, and that is
+        true of every encoder there is.
+        """
+        if self.max_sample_size:
+            return self.max_sample_size
+        sps = next(iter(self.sps.values()), None)
+        if sps is not None and sps.width and sps.height:
+            return max(1 << 20, sps.width * sps.height * 3)
+        return self._max_nal
+
+    @property
     def max_poc_lsb(self) -> int:
         return 1 << self.log2_max_poc_lsb
 
@@ -116,6 +139,8 @@ class HevcCodec(VideoCodec):
         self.nal_length_size = 4
         self.sps: dict[int, HevcSps] = {}
         self.pps: dict[int, HevcPps] = {}
+        self.max_slices = MAX_SLICES_PER_PICTURE
+        self.max_sample_size = 0     # 0 means work it out from the picture size
         self._max_nal = 64 << 20
 
     @property
@@ -161,6 +186,24 @@ class HevcCodec(VideoCodec):
             pass
 
     @property
+    def sample_ceiling(self) -> int:
+        """The largest a single frame is allowed to be.
+
+        Without a ceiling, four bytes of noise read as a length of nine
+        megabytes and the walk accepts a frame that is not there, swallowing
+        everything after it. The bound is taken from the reference when there
+        is one. Failing that it comes from the picture itself: a compressed
+        frame cannot be larger than the same picture uncompressed, and that is
+        true of every encoder there is.
+        """
+        if self.max_sample_size:
+            return self.max_sample_size
+        sps = next(iter(self.sps.values()), None)
+        if sps is not None and sps.width and sps.height:
+            return max(1 << 20, sps.width * sps.height * 3)
+        return self._max_nal
+
+    @property
     def max_poc_lsb(self) -> int:
         sps = next(iter(self.sps.values()), None)
         return sps.max_poc_lsb if sps else 0
@@ -177,10 +220,13 @@ class HevcCodec(VideoCodec):
         ls = self.nal_length_size
         seen_vcl = False
         first: tuple[int, bool, int | None] | None = None
+        slices = 0
+        prefix_nals = 0
+        prefix_bytes = 0
 
         while pos + ls + 2 <= n:
             length = int.from_bytes(data[pos : pos + ls], "big")
-            if length < 2 or length > self._max_nal:
+            if length < 2 or length > self.sample_ceiling:
                 break
             end = pos + ls + length
             if end > n:
@@ -199,6 +245,14 @@ class HevcCodec(VideoCodec):
             if not seen_vcl and nal_type not in VCL_TYPES:
                 if nal_type not in AU_PREFIX_TYPES or length > MAX_PREFIX_NAL:
                     break
+                prefix_nals += 1
+                prefix_bytes += length
+                # A picture is introduced by a handful of small units.
+                # Without a ceiling on how many, a run of noise can
+                # supply a hundred of them and the sample comes out
+                # megabytes long with no picture in it at all.
+                if prefix_nals > MAX_PREFIX_NALS or prefix_bytes > MAX_PREFIX_BYTES:
+                    return None
 
             if nal_type in VCL_TYPES:
                 parsed = self._read_slice_header(
@@ -209,6 +263,9 @@ class HevcCodec(VideoCodec):
                 first_in_pic, poc = parsed
                 if seen_vcl:
                     if first_in_pic:
+                        break
+                    slices += 1
+                    if slices > self.max_slices:
                         break
                 elif not first_in_pic:
                     return None

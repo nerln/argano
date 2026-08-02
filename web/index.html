@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>argano</title>
+<meta name="description" content="Rebuild the index of a video that will not play. The repair runs inside the browser and the file is never uploaded.">
+<meta name="theme-color" content="#131416" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EDE9E4" media="(prefers-color-scheme: light)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3.2' y='7' width='25.6' height='18' rx='3.2' fill='none' stroke='%2348C4A6' stroke-width='2.2'/%3E%3Crect x='6.4' y='11' width='13.4' height='10' rx='1.4' fill='%2348C4A6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- a very faint grain over everything. flat dark fills band on wide gamut
+     displays, and banding reads as cheap. -->
+<div class="grain" aria-hidden="true"></div>
+
+<!-- shown only while a file is being dragged over the window. -->
+<div id="veil" class="veil" hidden aria-hidden="true">
+  <div class="veil-card">
+    <svg class="veil-icon" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="3.2" y="7" width="25.6" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <rect x="6.4" y="11" width="13.4" height="10" rx="1.4" fill="currentColor"/>
+      <rect x="21.8" y="11" width="4.4" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.4 2.2"/>
+    </svg>
+    <p>Let go to open it</p>
+  </div>
+</div>
+
+<header class="top">
+  <span class="mark" aria-hidden="true">
+    <svg viewBox="0 0 32 32">
+      <rect x="3.2" y="7" width="25.6" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <rect x="6.4" y="11" width="13.4" height="10" rx="1.4" fill="currentColor"/>
+      <rect x="21.8" y="11" width="4.4" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.4 2.2"/>
+    </svg>
+  </span>
+  <span class="wordmark">argano</span>
+  <span class="top-file" id="top-file" hidden></span>
+  <button class="btn ghost tiny" id="start-over" hidden>Start again</button>
+</header>
+
+<main class="stage" id="stage">
+
+  <!-- one region for anything that went wrong. assertive, because it always
+       replaces something the person just asked for. -->
+  <div id="alert" class="alert" role="alert" hidden>
+    <svg class="alert-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M8 4.6v4.2M8 11.2v.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <p id="alert-text"></p>
+  </div>
+
+  <!-- the browser cannot run this. said out loud, because a page that quietly
+       does nothing when a file is dropped is the worst version of this. -->
+  <section class="card too-old" id="too-old" hidden>
+    <h1 class="verdict">This browser cannot run the repair</h1>
+    <p class="detail" id="too-old-why"></p>
+    <p class="detail">
+      The whole repair happens on this page, which asks the browser for two things:
+      reading a file from your disk as bytes, and loading JavaScript modules. Firefox,
+      Chrome, Edge and Safari have done both since 2018. There is no version of this
+      that sends your video somewhere else to be repaired instead.
+    </p>
+  </section>
+
+  <noscript>
+    <div class="card">
+      <h1 class="verdict">This page needs JavaScript</h1>
+      <p class="detail">
+        The repair is JavaScript, running in your browser on a file you choose. With
+        scripts turned off there is nothing here to read the file with.
+      </p>
+    </div>
+  </noscript>
+
+  <div id="screens">
+
+  <!-- screen 1 ═══ nothing open yet ═════════════════════════════════ -->
+  <section id="screen-open" class="screen" tabindex="-1" aria-labelledby="open-title">
+
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32">
+          <rect x="3.2" y="7" width="25.6" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <rect x="6.4" y="11" width="13.4" height="10" rx="1.4" fill="currentColor"/>
+          <rect x="21.8" y="11" width="4.4" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.4 2.2"/>
+        </svg>
+      </div>
+      <h1 class="dropzone-title" id="open-title">Drop a video that will not play</h1>
+      <p class="lede">
+        argano walks the raw bytes of a recording that was cut short, finds the frames,
+        rebuilds the index and writes a copy that plays. The picture and the sound are
+        carried across as they are, so nothing is encoded again and the file you drop
+        is only ever read.
+      </p>
+      <p class="dropzone-cta">
+        <button class="btn main" id="pick-damaged">Choose file</button>
+      </p>
+      <p class="fine">MP4, MOV and M4V, from a phone, a camera, a drone or a screen recorder.</p>
+    </div>
+
+    <!-- the reason this exists as a page rather than a download, so it is said
+         before anything is asked of anyone. -->
+    <aside class="privacy">
+      <span class="privacy-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 20.6c4.2-1.3 6.6-4.6 6.6-8.6V6.3L12 3.6 5.4 6.3V12c0 4 2.4 7.3 6.6 8.6Z"
+                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M9 12.2l2.1 2.1L15.2 10" fill="none" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <div class="privacy-body">
+        <h2 class="privacy-title">Your video is not uploaded</h2>
+        <p>
+          The repair runs on this page, on your own computer. Your browser reads the
+          file from your disk and hands the bytes to the code here: no server sees
+          them, there is no account, and nothing is sent anywhere at any point. Once
+          this page has loaded you can turn the network off, and a file will still
+          repair with no connection at all.
+        </p>
+        <p class="fine">
+          You can watch this happen. Open the network panel in your browser, repair a
+          file, and see that no request goes out.
+        </p>
+      </div>
+    </aside>
+
+    <!-- the one thing a new user will not have met before, so it is on the
+         first screen rather than waiting to surprise them. -->
+    <aside class="note">
+      <h2 class="note-title">Most repairs need a second video</h2>
+      <p>
+        A file that was never finalised has lost the part that says how the picture was
+        encoded. argano cannot invent those settings, so it reads them from a working
+        video instead: any clip made by the same camera or the same app, at the same
+        recording setting. That clip is called the reference. Three seconds of it is
+        enough, and it is only read, never changed.
+      </p>
+      <p class="fine">You will be asked for one only if this file needs it.</p>
+    </aside>
+
+    <!-- what the tool is, at the bottom, for the person who wants to know
+         before handing over a file they care about. -->
+    <section class="about">
+      <h2 class="sub">What this is</h2>
+      <p>
+        A recorder writes the picture and the sound as it goes and saves the index for
+        last. Pull the battery, fill the card, crash the app, and the recording is all
+        there with nothing to describe it, which is why every player refuses to open it.
+        argano reads the media, works out where each frame starts and how long it lasts,
+        writes a fresh index and gives back a copy that plays.
+      </p>
+      <p>
+        The reference video is for the settings that were never written down: the shape
+        of the picture and how it was encoded. Any clip that still plays from the same
+        camera or app carries them, and argano copies nothing else out of it.
+      </p>
+      <h3 class="about-sub">What it cannot do</h3>
+      <ul class="cannot">
+        <li>It cannot bring back media that was never written. If the recorder stopped
+          before the bytes reached the disk, they are not in the file, and no tool can
+          find what is not there.</li>
+        <li>It does not encode anything again. Frames that were recorded badly come back
+          exactly as badly as they were recorded.</li>
+        <li>It reads H.264 and H.265 video with AAC sound. Anything else is named on the
+          diagnosis screen and goes no further.</li>
+        <li>It reads MP4 and MOV files, M4V included. Not MKV, not AVI, not a camera's
+          own raw format.</li>
+      </ul>
+      <p class="fine">
+        argano is free and the code is open:
+        <a href="https://github.com/nerln/argano" rel="noopener">github.com/nerln/argano</a>.
+        There is a command line version there too, for repairing a folder at a time.
+      </p>
+    </section>
+  </section>
+
+  <!-- screen 2 ═══ what is wrong with it ════════════════════════════ -->
+  <section id="screen-diagnosis" class="screen" tabindex="-1" hidden aria-labelledby="dx-verdict">
+
+    <div class="card">
+      <p class="kicker">Diagnosis</p>
+      <h1 class="verdict" id="dx-verdict"></h1>
+      <p class="detail" id="dx-detail"></p>
+
+      <dl class="facts" id="dx-facts"></dl>
+
+      <div class="struct">
+        <h2 class="sub">What is inside the file</h2>
+        <div class="struct-bar" id="dx-bar" aria-hidden="true"></div>
+        <p class="struct-read" id="dx-read"></p>
+        <ul class="legend" id="dx-legend"></ul>
+        <table class="boxes" id="dx-table">
+          <caption class="visually-hidden">Top level boxes in the file, with their position and size</caption>
+          <thead>
+            <tr><th scope="col">Box</th><th scope="col">Starts at</th><th scope="col">Size</th><th scope="col">Share</th></tr>
+          </thead>
+          <tbody id="dx-boxes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card ref" id="ref-card">
+      <p class="kicker" id="ref-kicker"></p>
+      <h2 class="sub-title" id="ref-title"></h2>
+      <p id="ref-why"></p>
+      <ul class="ticks" id="ref-good"></ul>
+      <div class="row">
+        <button class="btn quiet" id="pick-ref">Choose reference video</button>
+        <span class="chosen" id="ref-chosen" hidden>
+          <span class="chosen-name" id="ref-name"></span>
+          <button class="btn ghost tiny" id="ref-clear">Remove</button>
+        </span>
+        <span class="fine" id="ref-drop-hint">or drop one on this card</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="row">
+        <button class="btn main" id="do-repair">Repair this file</button>
+        <button class="btn ghost" id="pick-other">Choose another file</button>
+      </div>
+      <p class="fine" id="repair-hint"></p>
+    </div>
+  </section>
+
+  <!-- screen 3 ═══ the repair, which runs for minutes ════════════════ -->
+  <section id="screen-repair" class="screen" tabindex="-1" hidden aria-labelledby="rp-title">
+    <div class="card work">
+      <p class="kicker">Repairing</p>
+      <h1 class="filename" id="rp-title"></h1>
+
+      <div class="figures">
+        <span class="pct tabular" id="rp-pct">0%</span>
+        <span class="elapsed tabular" id="rp-elapsed">0s</span>
+      </div>
+      <div class="bar" id="rp-track" role="progressbar" aria-label="Overall progress"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="rp-bar"></i></div>
+
+      <ol class="stages" id="rp-stages">
+        <li data-stage="inspect"><span class="tick" aria-hidden="true"></span><span class="stage-name">Read the file</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="scan"><span class="tick" aria-hidden="true"></span><span class="stage-name">Find the frames</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="audio"><span class="tick" aria-hidden="true"></span><span class="stage-name">Split the sound into frames</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="timeline"><span class="tick" aria-hidden="true"></span><span class="stage-name">Put the frames back on a clock</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="write"><span class="tick" aria-hidden="true"></span><span class="stage-name">Write the repaired copy</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="verify"><span class="tick" aria-hidden="true"></span><span class="stage-name">Check the result</span><span class="stage-bar"><i></i></span></li>
+      </ol>
+
+      <p class="note-line" id="rp-note" aria-live="polite"></p>
+      <p class="fine">
+        The percentage is an estimate of the whole job, since some stages are easier to
+        measure than others. An hour of 4K takes a few minutes to walk through. The work
+        happens on this page, so the window sits still for seconds at a time while a
+        stage runs: that is the repair, not a crash. Leave the tab open until it
+        finishes, and keep your file where it is, because it is being read from disk as
+        this goes.
+      </p>
+    </div>
+  </section>
+
+  <!-- screen 4 ═══ what came back ═══════════════════════════════════ -->
+  <section id="screen-result" class="screen" tabindex="-1" hidden aria-labelledby="rs-title">
+    <div class="card">
+      <p class="kicker" id="rs-kicker"></p>
+      <h1 class="verdict" id="rs-title"></h1>
+      <p class="detail" id="rs-sub"></p>
+
+      <ul class="stats" id="rs-stats"></ul>
+
+      <div class="get">
+        <a class="btn main big" id="rs-download" download>Save the repaired video</a>
+        <p class="get-name"><span id="rs-filename"></span> <span class="fine" id="rs-size"></span></p>
+      </div>
+      <p class="fine" id="rs-safe">
+        Your own file has not been touched. argano read it and wrote something new, and
+        the copy above is held in this tab until you save it or leave.
+      </p>
+
+      <div class="row">
+        <button class="btn quiet" id="again">Repair another</button>
+      </div>
+    </div>
+
+    <div id="rs-findings"></div>
+
+    <div class="card quiet-card" id="rs-loss"></div>
+
+    <div class="card quiet-card">
+      <h2 class="sub">How it was rebuilt</h2>
+      <dl class="how" id="rs-how"></dl>
+    </div>
+  </section>
+
+  </div>
+
+  <!-- one hidden input per role. a button is what people press, and it opens
+       the input, which is the only thing a browser lets open a picker. -->
+  <input type="file" id="file-damaged" class="visually-hidden" tabindex="-1"
+         accept="video/*,.mov,.mp4,.m4v" aria-hidden="true">
+  <input type="file" id="file-reference" class="visually-hidden" tabindex="-1"
+         accept="video/*,.mov,.mp4,.m4v" aria-hidden="true">
+
+</main>
+
+<!-- a browser with no module support never runs app.js at all, so the notice
+     for that case has to be plain old script, and it has to be defined before
+     the nomodule line below can call it. -->
+<script>
+  window.arganoStopped = function (why) {
+    var block = document.getElementById('too-old');
+    if (!block || !block.hasAttribute('hidden')) return;
+    document.getElementById('too-old-why').textContent = why;
+    block.removeAttribute('hidden');
+    var screens = document.getElementById('screens');
+    if (screens) screens.setAttribute('hidden', 'hidden');
+  };
+  /* app.js sets this the moment it runs. if it has not run by now the module
+     failed to load or failed to parse, both of which are silent. */
+  window.setTimeout(function () {
+    if (window.arganoReady) return;
+    window.arganoStopped('The repair code did not load. Reload the page, and if this keeps '
+      + 'happening then the copy of argano you are looking at is missing a file.');
+  }, 8000);
+</script>
+<script nomodule>
+  window.arganoStopped('This browser does not load JavaScript modules, which is how the repair code is put together.');
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

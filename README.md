@@ -6,6 +6,8 @@
 
 argano writes the table of contents back, from the raw bytes, without re-encoding a single frame.
 
+**[Repair a file in your browser](https://eugenionerelli.github.io/argano/)** · nothing is uploaded
+
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#install)
 [![Licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 [![Codecs](https://img.shields.io/badge/H.264%20%C2%B7%20H.265-AAC%20%C2%B7%20PCM-orange)](#what-it-handles)
@@ -45,6 +47,11 @@ argano inspect broken.mov                      # what is wrong with it
 argano repair broken.mov -r working.mov        # fix it
 argano gui                                     # the same thing in a window
 ```
+
+There is also a [web page](https://eugenionerelli.github.io/argano/) that does
+the same job with nothing installed. It is the same engine, ported to run in
+the browser: the file is read from disk by the page itself and never sent
+anywhere, and after the first visit the page works with the network off.
 
 ## The reference file
 
@@ -215,11 +222,25 @@ checked against three sources that have to agree: the lengths the format fixes,
 the picture size the encoder wrote into its own parameter sets, and the sample
 tables' own arithmetic. With ffmpeg present the whole file is decoded as well.
 
+## The page
+
+`web/` is a second implementation of the same algorithm in browser JavaScript,
+with no dependencies and no build step. Open `web/index.html` from a local
+server and it works.
+
+It carries its own AAC parser rather than calling a library, because finding
+where an AAC frame ends means parsing its whole bitstream syntax, Huffman
+coded spectral data included, and the C library that does that is under a
+licence this project cannot bundle. The parser is written from the format
+specification and tested against 1218 real frame boundaries taken from four
+recordings, which it gets right exactly.
+
 ## Tests
 
 ```bash
 pip install -e '.[dev]'
-pytest
+pytest                          # the Python engine
+node --test web/lib/*.test.mjs  # the browser engine and the AAC parser
 ```
 
 The tests build their own samples with ffmpeg, break them in the ways that
@@ -227,6 +248,9 @@ happen to people, repair them and compare against the originals. Frame counts
 have to match exactly. The media bytes in the output have to be identical to
 the media bytes in the input, which is the check that no re-encode crept in.
 Two of the unit tests are regressions for the bugs described above.
+
+Both engines answer the same questions about the same bytes, which is how two
+ports of one algorithm are kept from drifting apart.
 
 `tools/damage.py` is the same damage on the command line, if you want to try it
 on a file of your own:
