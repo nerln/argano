@@ -6,7 +6,7 @@
 
 argano writes the table of contents back, from the raw bytes, without re-encoding a single frame.
 
-**[Repair a file in your browser](https://eugenionerelli.github.io/argano/)** · nothing is uploaded
+**[Repair a file in your browser](https://nerln.github.io/argano/)** · nothing is uploaded
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#install)
 [![Licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
@@ -48,7 +48,7 @@ argano repair broken.mov -r working.mov        # fix it
 argano gui                                     # the same thing in a window
 ```
 
-There is also a [web page](https://eugenionerelli.github.io/argano/) that does
+There is also a [web page](https://nerln.github.io/argano/) that does
 the same job with nothing installed. It is the same engine, ported to run in
 the browser: the file is read from disk by the page itself and never sent
 anywhere, and after the first visit the page works with the network off.
