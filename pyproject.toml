@@ -1,0 +1,50 @@
+[project]
+name = "argano"
+version = "0.1.0"
+description = "Rebuild the index of a video file that was never finalised, without re-encoding it."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Eugenio Nerelli" }]
+keywords = [
+    "video", "repair", "recovery", "mp4", "mov", "quicktime",
+    "h264", "hevc", "aac", "corrupt", "moov",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Video",
+    "Topic :: System :: Recovery Tools",
+]
+# The repair itself is pure Python and needs nothing installed. The sound needs
+# libfaad, which is a system library rather than a wheel: see the readme. The
+# window needs the two below, and the command line does not.
+dependencies = []
+
+[project.optional-dependencies]
+gui = ["fastapi>=0.110", "uvicorn>=0.27", "pywebview>=5.0"]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/eugenionerelli/argano"
+Issues = "https://github.com/eugenionerelli/argano/issues"
+
+[project.scripts]
+argano = "argano.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["argano", "argano.codecs"]
+
+[tool.setuptools.package-data]
+argano = ["web/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error::DeprecationWarning"]

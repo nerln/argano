@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "argano",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["-m", "argano", "gui", "--no-window", "--port", "8756"],
+      "port": 8756
+    }
+  ]
+}

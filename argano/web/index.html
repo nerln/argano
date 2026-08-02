@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>argano</title>
+<meta name="theme-color" content="#131416">
+<!-- the ?v= moves with each release. without it a WebView that has already
+     cached the old stylesheet keeps using it after an update. -->
+<link rel="stylesheet" href="/static/app.css?v=0.1.0">
+</head>
+<body>
+
+<!-- a very faint grain over everything. flat dark fills band on wide gamut
+     displays, and banding reads as cheap. -->
+<div class="grain" aria-hidden="true"></div>
+
+<!-- shown only while a file is being dragged over the window. -->
+<div id="veil" class="veil" hidden aria-hidden="true">
+  <div class="veil-card">
+    <svg class="veil-icon" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="3.2" y="7" width="25.6" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <rect x="6.4" y="11" width="13.4" height="10" rx="1.4" fill="currentColor"/>
+      <rect x="21.8" y="11" width="4.4" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.4 2.2"/>
+    </svg>
+    <p>Let go to open it</p>
+  </div>
+</div>
+
+<header class="top">
+  <span class="mark" aria-hidden="true">
+    <svg viewBox="0 0 32 32">
+      <rect x="3.2" y="7" width="25.6" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <rect x="6.4" y="11" width="13.4" height="10" rx="1.4" fill="currentColor"/>
+      <rect x="21.8" y="11" width="4.4" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.4 2.2"/>
+    </svg>
+  </span>
+  <span class="wordmark">argano</span>
+  <span class="top-file" id="top-file" hidden></span>
+  <button class="btn ghost tiny" id="start-over" hidden>Start again</button>
+</header>
+
+<main class="stage" id="stage">
+
+  <!-- one region for anything that went wrong. assertive, because it always
+       replaces something the person just asked for. -->
+  <div id="alert" class="alert" role="alert" hidden>
+    <svg class="alert-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M8 4.6v4.2M8 11.2v.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <p id="alert-text"></p>
+  </div>
+
+  <!-- screen 1 ═══ nothing open yet ═════════════════════════════════ -->
+  <section id="screen-open" class="screen" tabindex="-1" aria-labelledby="open-title">
+
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32">
+          <rect x="3.2" y="7" width="25.6" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <rect x="6.4" y="11" width="13.4" height="10" rx="1.4" fill="currentColor"/>
+          <rect x="21.8" y="11" width="4.4" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.4 2.2"/>
+        </svg>
+      </div>
+      <h1 class="dropzone-title" id="open-title">Drop a video that will not play</h1>
+      <p class="lede">
+        argano walks the raw bytes of a recording that was cut short, finds the frames,
+        rebuilds the index and writes a copy that plays. The picture and the sound are
+        carried across as they are, so nothing is encoded again and the original stays
+        where it is.
+      </p>
+      <p class="dropzone-cta">
+        <button class="btn main" id="pick-damaged">Choose file</button>
+      </p>
+      <p class="fine">MP4, MOV and M4V, from a phone, a camera, a drone or a screen recorder.</p>
+    </div>
+
+    <!-- the one thing a new user will not have met before, so it is on the
+         first screen rather than waiting to surprise them. -->
+    <aside class="note">
+      <h2 class="note-title">Most repairs need a second video</h2>
+      <p>
+        A file that was never finalised has lost the part that says how the picture was
+        encoded. argano cannot invent those settings, so it reads them from a working
+        video instead: any clip made by the same camera or the same app, at the same
+        recording setting. That clip is called the reference. Three seconds of it is
+        enough, and it is only read, never changed.
+      </p>
+      <p class="fine">You will be asked for one only if this file needs it.</p>
+    </aside>
+
+    <!-- fallback for a plain browser, where neither a native picker nor a real
+         dropped path is available. hidden until one of those fails. -->
+    <form class="paste" id="paste-damaged" hidden>
+      <label for="paste-damaged-input">Paste the full path of the damaged video</label>
+      <p class="fine" id="paste-damaged-why">This window cannot open a file picker, so the location has to be typed or pasted.</p>
+      <div class="paste-row">
+        <input type="text" id="paste-damaged-input" spellcheck="false" autocomplete="off"
+               autocapitalize="off" placeholder="/Users/you/Movies/clip.mov"
+               aria-describedby="paste-damaged-why">
+        <button class="btn quiet" type="submit">Open</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- screen 2 ═══ what is wrong with it ════════════════════════════ -->
+  <section id="screen-diagnosis" class="screen" tabindex="-1" hidden aria-labelledby="dx-verdict">
+
+    <div class="card">
+      <p class="kicker">Diagnosis</p>
+      <h1 class="verdict" id="dx-verdict"></h1>
+      <p class="detail" id="dx-detail"></p>
+
+      <dl class="facts" id="dx-facts"></dl>
+
+      <div class="struct">
+        <h2 class="sub">What is inside the file</h2>
+        <div class="struct-bar" id="dx-bar" aria-hidden="true"></div>
+        <p class="struct-read" id="dx-read"></p>
+        <ul class="legend" id="dx-legend"></ul>
+        <table class="boxes">
+          <caption class="visually-hidden">Top level boxes in the file, with their position and size</caption>
+          <thead>
+            <tr><th scope="col">Box</th><th scope="col">Starts at</th><th scope="col">Size</th><th scope="col">Share</th></tr>
+          </thead>
+          <tbody id="dx-boxes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card ref" id="ref-card">
+      <p class="kicker" id="ref-kicker"></p>
+      <h2 class="sub-title" id="ref-title"></h2>
+      <p id="ref-why"></p>
+      <ul class="ticks" id="ref-good"></ul>
+      <div class="row">
+        <button class="btn quiet" id="pick-ref">Choose reference video</button>
+        <span class="chosen" id="ref-chosen" hidden>
+          <span class="chosen-name" id="ref-name"></span>
+          <button class="btn ghost tiny" id="ref-clear">Remove</button>
+        </span>
+      </div>
+      <form class="paste" id="paste-reference" hidden>
+        <label for="paste-reference-input">Paste the full path of the reference video</label>
+        <div class="paste-row">
+          <input type="text" id="paste-reference-input" spellcheck="false" autocomplete="off"
+                 autocapitalize="off" placeholder="/Users/you/Movies/good-clip.mov">
+          <button class="btn quiet" type="submit">Use this</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="actions">
+      <label class="opt">
+        <input type="checkbox" id="faststart">
+        <span class="opt-label">
+          Put the index at the front
+          <em>The file then starts playing before it has finished downloading, which matters for uploads and streaming. Writing takes a little longer.</em>
+        </span>
+      </label>
+      <div class="row">
+        <button class="btn main" id="do-repair">Repair this file</button>
+        <button class="btn ghost" id="pick-other">Choose another file</button>
+      </div>
+      <p class="fine" id="repair-hint"></p>
+    </div>
+  </section>
+
+  <!-- screen 3 ═══ the repair, which runs for minutes ════════════════ -->
+  <section id="screen-repair" class="screen" tabindex="-1" hidden aria-labelledby="rp-title">
+    <div class="card work">
+      <p class="kicker">Repairing</p>
+      <h1 class="filename" id="rp-title"></h1>
+
+      <div class="figures">
+        <span class="pct tabular" id="rp-pct">0%</span>
+        <span class="elapsed tabular" id="rp-elapsed">0s</span>
+      </div>
+      <div class="bar" id="rp-track" role="progressbar" aria-label="Overall progress"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="rp-bar"></i></div>
+
+      <ol class="stages" id="rp-stages">
+        <li data-stage="inspect"><span class="tick" aria-hidden="true"></span><span class="stage-name">Read the file</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="scan"><span class="tick" aria-hidden="true"></span><span class="stage-name">Find the frames</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="audio"><span class="tick" aria-hidden="true"></span><span class="stage-name">Split the sound into frames</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="timeline"><span class="tick" aria-hidden="true"></span><span class="stage-name">Put the frames back on a clock</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="write"><span class="tick" aria-hidden="true"></span><span class="stage-name">Write the repaired copy</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="verify"><span class="tick" aria-hidden="true"></span><span class="stage-name">Check the result</span><span class="stage-bar"><i></i></span></li>
+      </ol>
+
+      <p class="note-line" id="rp-note" aria-live="polite"></p>
+      <p class="fine">
+        The percentage is an estimate of the whole job, since some stages are easier to
+        measure than others. A long recording takes a few minutes. You can leave this
+        window alone, or put it behind another one, and the repair carries on. Your
+        original file is only read.
+      </p>
+    </div>
+  </section>
+
+  <!-- screen 4 ═══ what came back ═══════════════════════════════════ -->
+  <section id="screen-result" class="screen" tabindex="-1" hidden aria-labelledby="rs-title">
+    <div class="card">
+      <p class="kicker" id="rs-kicker"></p>
+      <h1 class="verdict" id="rs-title"></h1>
+      <p class="detail" id="rs-sub"></p>
+
+      <ul class="stats" id="rs-stats"></ul>
+
+      <p class="path-label">Written to</p>
+      <p class="path"><code id="rs-path"></code></p>
+
+      <div class="row">
+        <button class="btn main" id="reveal">Show in Finder</button>
+        <button class="btn quiet" id="again">Repair another</button>
+      </div>
+    </div>
+
+    <div id="rs-findings"></div>
+
+    <div class="card quiet-card" id="rs-loss"></div>
+
+    <div class="card quiet-card">
+      <h2 class="sub">How it was rebuilt</h2>
+      <dl class="how" id="rs-how"></dl>
+    </div>
+  </section>
+
+</main>
+
+<script src="/static/app.js?v=0.1.0"></script>
+</body>
+</html>

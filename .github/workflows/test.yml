@@ -1,0 +1,41 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.10", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # The tests build their own damaged samples with ffmpeg, and libfaad is
+      # what splits recovered sound into frames. Without it the audio
+      # assertions skip rather than fail, which would hide a real regression.
+      - name: System libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libfaad2
+
+      - name: System libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg faad2
+
+      - run: pip install -e '.[dev]'
+      - run: pytest -q
+
+      - name: House style
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        run: python tools/stylecheck.py README.md argano/*.py argano/codecs/*.py argano/web/*
