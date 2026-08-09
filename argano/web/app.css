@@ -53,10 +53,10 @@
   --text-2: #A6ABB0;          /* 7.4:1 on --content */
   --text-3: #93989E;          /* 4.9:1 on --card-hi, the tightest pairing here */
 
-  --accent: #48C4A6;
+  --accent: #48C478;
   --accent-ink: #04221B;      /* 7.8:1 on --accent, for text sitting on the fill */
-  --accent-dim: rgba(72, 196, 166, 0.14);
-  --accent-glow: rgba(72, 196, 166, 0.26);
+  --accent-dim: rgba(72, 196, 120, 0.14);
+  --accent-glow: rgba(72, 196, 120, 0.26);
 
   --warn: #E3AC4A;
   --danger: #F0837A;
@@ -252,7 +252,7 @@ p:last-child { margin-bottom: 0; }
 
 .kicker {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -279,7 +279,7 @@ p:last-child { margin-bottom: 0; }
 .sub {
   margin: 0 0 10px;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -320,7 +320,9 @@ p:last-child { margin-bottom: 0; }
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 640;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 10px var(--accent-glow);
+  /* Ombra neutra e non un alone del colore d'accento: l'alone cromatico
+     e' il modo di fare piu' riconoscibile delle interfacce generate. */
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 8px rgba(0, 0, 0, 0.34);
 }
 .btn.main:hover { filter: brightness(1.07); }
 .btn.main:focus-visible { outline-color: var(--text); }
@@ -374,8 +376,7 @@ input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-o
   padding: 12px 14px;
   margin-bottom: 16px;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--danger);
+  border: 1px solid var(--danger);
   border-radius: var(--r-md);
   animation: settle var(--normal) var(--ease-out);
 }
@@ -509,7 +510,7 @@ input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-o
 .boxes th {
   text-align: left;
   font-weight: 560;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -639,6 +640,7 @@ input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-o
   width: 0;
   border-radius: 999px;
   background: var(--accent);
+  /* impeccable-disable-next-line layout-transition -- il valore lo scrive il JS in percentuale, e su una barra da 5px non vale la conversione a transform */
   transition: width var(--slow) var(--ease);
 }
 
@@ -697,6 +699,7 @@ input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-o
   width: 0;
   border-radius: 999px;
   background: var(--accent);
+  /* impeccable-disable-next-line layout-transition -- come sopra, barra da 3px */
   transition: width var(--normal) var(--ease);
 }
 
@@ -733,7 +736,7 @@ input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-o
 
 .path-label {
   margin: 0 0 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -762,8 +765,7 @@ input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-o
   padding: 11px 14px;
   margin-bottom: 8px;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--warn);
+  border: 1px solid var(--warn);
   border-radius: var(--r-md);
   font-size: 12.5px;
   color: var(--text-2);
@@ -771,7 +773,7 @@ input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-o
 .finding.is-error { border-left-color: var(--danger); }
 .finding-tag {
   flex: none;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;

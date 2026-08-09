@@ -57,15 +57,15 @@
   --text-2: #A6ABB0;          /* 7.4:1 on --content */
   --text-3: #93989E;          /* 4.9:1 on --card-hi, the tightest pairing here */
 
-  --accent: #48C4A6;
+  --accent: #48C478;
   --accent-ink: #04221B;      /* 7.8:1 on --accent, for text sitting on the fill */
-  --accent-dim: rgba(72, 196, 166, 0.14);
-  --accent-glow: rgba(72, 196, 166, 0.26);
+  --accent-dim: rgba(72, 196, 120, 0.14);
+  --accent-glow: rgba(72, 196, 120, 0.26);
   /* The same hue at zero alpha, for the far end of every gradient. The
      `transparent` word is black with no alpha, and an engine that blends the
      two ends without premultiplying drags the whole wash towards grey. This
      was visible: the drop target came out as a grey slab in light mode. */
-  --accent-fade: rgba(72, 196, 166, 0);
+  --accent-fade: rgba(72, 196, 120, 0);
 
   --warn: #E3AC4A;
   --danger: #F0837A;
@@ -267,7 +267,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
 
 .kicker {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -294,7 +294,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
 .sub {
   margin: 0 0 10px;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -338,7 +338,9 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 640;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 10px var(--accent-glow);
+  /* Ombra neutra e non un alone del colore d'accento: l'alone cromatico
+     e' il modo di fare piu' riconoscibile delle interfacce generate. */
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 8px rgba(0, 0, 0, 0.34);
 }
 .btn.main:hover { filter: brightness(1.07); color: var(--accent-ink); }
 .btn.main:focus-visible { outline-color: var(--text); }
@@ -362,8 +364,7 @@ a.btn { text-decoration: none; }
   padding: 12px 14px;
   margin-bottom: 16px;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--danger);
+  border: 1px solid var(--danger);
   border-radius: var(--r-md);
   animation: settle var(--normal) var(--ease-out);
 }
@@ -381,9 +382,7 @@ a.btn { text-decoration: none; }
   padding: 46px 30px 40px;
   margin-bottom: 14px;
   text-align: center;
-  background:
-    radial-gradient(115% 80% at 50% 0%, var(--accent-dim), var(--accent-fade) 62%),
-    var(--card);
+  background: var(--card);
   border: 1px dashed var(--line-2);
   border-radius: var(--r-xl);
   cursor: pointer;
@@ -411,9 +410,8 @@ a.btn { text-decoration: none; }
   align-items: flex-start;
   padding: 16px 18px;
   margin-bottom: 14px;
-  background: linear-gradient(100deg, var(--accent-dim), var(--accent-fade) 55%), var(--card);
+  background: var(--card);
   border: 1px solid var(--line);
-  border-left: 2px solid var(--accent);
   border-radius: var(--r-lg);
 }
 .privacy-icon { width: 26px; height: 26px; flex: none; color: var(--accent); margin-top: 1px; }
@@ -545,7 +543,7 @@ a.btn { text-decoration: none; }
 .boxes th {
   text-align: left;
   font-weight: 560;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -671,6 +669,7 @@ a.btn { text-decoration: none; }
   width: 0;
   border-radius: 999px;
   background: var(--accent);
+  /* impeccable-disable-next-line layout-transition -- il valore lo scrive il JS in percentuale, e su una barra da 5px non vale la conversione a transform */
   transition: width var(--slow) var(--ease);
 }
 
@@ -729,6 +728,7 @@ a.btn { text-decoration: none; }
   width: 0;
   border-radius: 999px;
   background: var(--accent);
+  /* impeccable-disable-next-line layout-transition -- come sopra, barra da 3px */
   transition: width var(--normal) var(--ease);
 }
 
@@ -795,8 +795,7 @@ a.btn { text-decoration: none; }
   padding: 11px 14px;
   margin-bottom: 8px;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--warn);
+  border: 1px solid var(--warn);
   border-radius: var(--r-md);
   font-size: 12.5px;
   color: var(--text-2);
@@ -804,7 +803,7 @@ a.btn { text-decoration: none; }
 .finding.is-error { border-left-color: var(--danger); }
 .finding-tag {
   flex: none;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
