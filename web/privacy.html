@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy · argano</title>
+<meta name="description" content="What argano collects: one anonymous count when the page opens, and your answer if you give one. Your video never leaves your computer.">
+<link rel="canonical" href="https://nerln.github.io/argano/privacy.html">
+<meta name="color-scheme" content="light dark">
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('argano-theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <a class="wordmark" href="./">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="3" y="7" width="26" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <rect x="6.5" y="11" width="13" height="10" rx="1.6" fill="currentColor"/>
+      <rect x="22" y="11" width="3.6" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+    </svg>
+    <span>argano</span>
+  </a>
+</header>
+<main class="legal">
+  <h1>Privacy policy</h1>
+  <p class="fine">Last updated 22 October 2026</p>
+
+  <h2>Who is responsible</h2>
+  <p>
+    argano is run by Eugenio Nerelli, an independent developer based in Spain, who is
+    the controller of the data described here. Contact:
+    <a id="mail" href="#">write to the developer</a><noscript>eugenio.nerelli99 at gmail.com</noscript>.
+  </p>
+
+  <h2>Your video</h2>
+  <p>
+    The repair runs entirely in your browser. Your video is never uploaded, stored or
+    seen by us or by anyone else, and nothing from it is ever sent.
+  </p>
+
+  <h2>What is collected</h2>
+  <ul>
+    <li>When a page of argano opens: the page address, the website that sent you and
+      any campaign tag in the link.</li>
+    <li>If you answer the question after a repair: whether the repair worked.</li>
+  </ul>
+  <p>
+    These counts are received by GoatCounter, which also derives the browser, the
+    operating system and the country from the request. To tell one visit from
+    another it holds your IP address and browser identifier in memory for up to 8
+    hours, and never writes them to disk. What is kept are totals, which cannot be
+    linked to a person. No cookies are set and no identifier is kept on your device.
+  </p>
+  <p>
+    If you switch between light and dark, the choice is remembered in your browser
+    under the name <span class="tabular">argano-theme</span>. It stays on your device
+    and is never sent.
+  </p>
+
+  <h2>Purpose and legal basis</h2>
+  <p>
+    To know how many people use argano, where they come from and whether its repairs
+    work. The legal basis is the legitimate interest in running and improving a free
+    tool (Article 6(1)(f) GDPR).
+  </p>
+
+  <h2>Who receives the data</h2>
+  <ul>
+    <li>GoatCounter (goatcounter.com), operated by Martin Tournoij in Ireland, which
+      counts visits on our behalf as a processor. Its servers are run by Hetzner
+      Online GmbH in Finland and Germany, so the data stays in the European Union.</li>
+    <li>GitHub Pages (GitHub, Inc., United States), which serves these pages and may log
+      requests under its own privacy statement. GitHub is certified under the EU-U.S.
+      Data Privacy Framework.</li>
+  </ul>
+
+  <h2>How long it is kept</h2>
+  <p>Totals are kept for up to 25 months.</p>
+
+  <h2>Your rights</h2>
+  <p>
+    You can request access, rectification, erasure, restriction, portability or object
+    by writing to the contact above, and you can lodge a complaint with the Agencia
+    Española de Protección de Datos (aepd.es).
+  </p>
+
+  <h2>Changes</h2>
+  <p>This policy may change. The date at the top shows the version in force.</p>
+</main>
+<footer class="foot">
+  <p><a href="./">argano</a> · <a href="terms.html">Terms</a></p>
+</footer>
+<!-- the address is put together here rather than written into the page, the same
+     way as on nerln.github.io, so that scrapers reading the HTML find nothing. -->
+<script>
+  (function () {
+    var a = document.getElementById('mail');
+    var m = ['eugenio.nerelli99', 'gmail.com'].join('@');
+    a.href = 'mailto:' + m;
+    a.textContent = m;
+  })();
+</script>
+</body>
+</html>

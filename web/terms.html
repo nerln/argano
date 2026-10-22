@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Terms · argano</title>
+<meta name="description" content="Terms of use of argano, the free in-browser repair for MP4 and MOV recordings that will not play.">
+<link rel="canonical" href="https://nerln.github.io/argano/terms.html">
+<meta name="color-scheme" content="light dark">
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('argano-theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <a class="wordmark" href="./">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="3" y="7" width="26" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <rect x="6.5" y="11" width="13" height="10" rx="1.6" fill="currentColor"/>
+      <rect x="22" y="11" width="3.6" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+    </svg>
+    <span>argano</span>
+  </a>
+</header>
+<main class="legal">
+  <h1>Terms of use</h1>
+  <p class="fine">Last updated 22 October 2026</p>
+
+  <h2>1. Acceptance</h2>
+  <p>
+    By using argano at nerln.github.io/argano you accept these terms. If you do not
+    accept them, do not use it.
+  </p>
+
+  <h2>2. The service</h2>
+  <p>
+    argano is a free tool, provided by Eugenio Nerelli, that tries to make damaged MP4
+    and MOV recordings playable by rebuilding their index inside your browser. Its
+    source code is published under the MIT licence, which governs the code. These terms
+    govern the use of this website.
+  </p>
+
+  <h2>3. As is</h2>
+  <p>
+    argano is provided "as is" and "as available", without warranties of any kind. A
+    repair may fail, may be partial or may produce a file with errors. Keep your
+    original file and your own backups.
+  </p>
+
+  <h2>4. Liability</h2>
+  <p>
+    To the fullest extent permitted by law, Eugenio Nerelli is not liable for any loss
+    of data, footage, profit or opportunity, or for any direct, indirect or
+    consequential damage arising from the use of argano or from being unable to use it.
+    Nothing in these terms limits liability that cannot be limited by law.
+  </p>
+
+  <h2>5. Your use</h2>
+  <p>Use argano only on files you have the right to process, and never for an unlawful purpose.</p>
+
+  <h2>6. Availability</h2>
+  <p>argano may be changed, suspended or withdrawn at any time, without notice.</p>
+
+  <h2>7. Changes</h2>
+  <p>
+    These terms may be updated. The date at the top shows the version in force, and
+    using argano after a change means accepting it.
+  </p>
+
+  <h2>8. Law and courts</h2>
+  <p>These terms are governed by Spanish law. Any dispute goes to the courts of Valencia, Spain.</p>
+</main>
+<footer class="foot">
+  <p><a href="./">argano</a> · <a href="privacy.html">Privacy</a></p>
+</footer>
+</body>
+</html>

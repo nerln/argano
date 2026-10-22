@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<!-- written by tools/pages.mjs from tools/page.html and web/i18n.js: change those, not this -->
+<html lang="es-ES">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>argano · repara un MP4 o un MOV que no se abre</title>
+<meta name="description" content="Reparación gratuita y de código abierto para grabaciones cortadas: Photo Booth en el Mac, móviles, cámaras, drones. Reconstruye el índice del vídeo dentro del navegador, y el archivo nunca se sube.">
+<link rel="canonical" href="https://nerln.github.io/argano/es/">
+<link rel="alternate" hreflang="en" href="https://nerln.github.io/argano/">
+<link rel="alternate" hreflang="it" href="https://nerln.github.io/argano/it/">
+<link rel="alternate" hreflang="es" href="https://nerln.github.io/argano/es/">
+<link rel="alternate" hreflang="x-default" href="https://nerln.github.io/argano/">
+<meta name="author" content="Eugenio Nerelli">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://nerln.github.io/argano/es/">
+<meta property="og:title" content="argano · repara un MP4 o un MOV que no se abre">
+<meta property="og:description" content="Para grabaciones que se cortaron. La reparación ocurre en tu navegador y el vídeo nunca se sube.">
+<meta name="twitter:card" content="summary">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<!-- what a search engine reads to know this is a free tool and who made it. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "argano",
+  "url": "https://nerln.github.io/argano/es/",
+  "inLanguage": "es",
+  "description": "Repara grabaciones MP4 y MOV cortadas que no se abren, incluidas las de Photo Booth en macOS, reconstruyendo el índice en el navegador sin recodificar.",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Any modern web browser",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/nerln/argano",
+  "author": { "@type": "Person", "name": "Eugenio Nerelli", "url": "https://nerln.github.io/" }
+}
+</script>
+<!-- the theme is settled before anything is drawn, so a dark page never flashes
+     white. A choice made with the button wins; otherwise the system decides. -->
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('argano-theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='7' width='26' height='18' rx='4' fill='none' stroke='%230a64d8' stroke-width='2.4'/%3E%3Crect x='6.5' y='11' width='13' height='10' rx='1.6' fill='%230a64d8'/%3E%3C/svg%3E">
+<link rel="preload" href="../fonts/mona-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../app.css">
+</head>
+<body>
+
+<!-- shown only while a file is being dragged over the window. -->
+<div id="veil" class="veil" hidden aria-hidden="true">
+  <div class="veil-card">
+    <svg class="veil-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>
+    </svg>
+    <p>Suelta para abrirlo</p>
+  </div>
+</div>
+
+<header class="top">
+  <a class="wordmark" href="../es/" aria-label="argano">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="3" y="7" width="26" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <rect x="6.5" y="11" width="13" height="10" rx="1.6" fill="currentColor"/>
+      <rect x="22" y="11" width="3.6" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+    </svg>
+    <span>argano</span>
+  </a>
+  <span class="top-file" id="top-file" hidden></span>
+  <button class="btn quiet small" id="start-over" hidden>Empezar de nuevo</button>
+  <div class="pill" role="group">
+    <svg class="pill-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+    </svg>
+    <nav class="langs" aria-label="Idioma"><a href="../" lang="en" hreflang="en">EN</a><a href="../it/" lang="it" hreflang="it">IT</a><a href="../es/" lang="es" aria-current="page">ES</a></nav>
+    <span class="pill-rule" aria-hidden="true"></span>
+    <button class="theme" id="theme" type="button" aria-label="Cambiar entre claro y oscuro" title="Cambiar entre claro y oscuro">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+      </svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7Z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="stage" id="stage">
+
+  <!-- one region for anything that went wrong. assertive, because it always
+       replaces something the person just asked for. -->
+  <div id="alert" class="alert" role="alert" hidden>
+    <svg class="alert-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0ZM12 9v4.5M12 17h.01"/>
+    </svg>
+    <p id="alert-text"></p>
+  </div>
+
+  <!-- the browser cannot run this. said out loud, because a page that quietly
+       does nothing when a file is dropped is the worst version of this. -->
+  <section class="card too-old" id="too-old" hidden>
+    <h1 class="verdict">Este navegador no puede hacer la reparación</h1>
+    <p class="detail" id="too-old-why"></p>
+    <p class="detail">Toda la reparación ocurre en esta página, que pide al navegador dos cosas: leer un archivo del disco como bytes y cargar módulos de JavaScript. Firefox, Chrome, Edge y Safari hacen ambas desde 2018. No existe una versión que mande tu vídeo a otro sitio para repararlo.</p>
+  </section>
+
+  <noscript>
+    <div class="card">
+      <h1 class="verdict">Esta página necesita JavaScript</h1>
+      <p class="detail">La reparación es JavaScript, que se ejecuta en tu navegador sobre el archivo que eliges. Con los scripts desactivados aquí no hay nada que pueda leerlo.</p>
+    </div>
+  </noscript>
+
+  <a class="suggest" id="lang-suggest" hidden></a>
+
+  <div id="screens">
+
+  <!-- screen 1 ═══ nothing open yet ═════════════════════════════════ -->
+  <section id="screen-open" class="screen open" tabindex="-1" aria-labelledby="open-title">
+
+    <div class="hero">
+      <h1 class="display" id="open-title">Tu vídeo sigue ahí dentro.</h1>
+      <p class="lead">Una grabación cortada por una batería agotada, una tarjeta llena o un cierre inesperado conserva todos los fotogramas. Lo que ha perdido es el índice que le dice al reproductor dónde empieza cada uno. argano vuelve a escribir ese índice, aquí, en tu navegador.</p>
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <span class="dropzone-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="m10 12 4.5 2.5L10 17Z"/>
+        </svg>
+      </span>
+      <h2 class="dropzone-title">Suelta aquí un vídeo que no se abre</h2>
+      <p class="dropzone-cta">
+        <button class="btn main" id="pick-damaged">Elegir un archivo</button>
+      </p>
+      <p class="fine">MP4, MOV y M4V, de Photo Booth, un móvil, una cámara, un dron o un grabador de pantalla.</p>
+    </div>
+
+    <!-- the whole idea in one picture, drawn to the shape of a real file: a long
+         run of frames and, where the index should be, nothing. -->
+    <figure class="diagram" role="img" aria-label="Una grabación es un bloque largo de fotogramas seguido de un índice corto. En una grabación cortada los fotogramas están todos y falta el índice.">
+      <div class="dia-bar" aria-hidden="true">
+        <span class="dia-media"></span>
+        <span class="dia-index"></span>
+      </div>
+      <figcaption class="dia-legend" aria-hidden="true">
+        <span><i class="dia-swatch is-media"></i>Todos los fotogramas, aún en el disco</span>
+        <span><i class="dia-swatch is-index"></i>El índice, nunca escrito</span>
+      </figcaption>
+    </figure>
+
+    <ul class="trust">
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 2 20 20M5.8 8.2A5 5 0 0 0 6.5 18H17a4 4 0 0 0 1.2-.2M21.2 15.5A4 4 0 0 0 17 9.6a6 6 0 0 0-8-2.8"/></svg>
+        <h3>Nunca se sube</h3>
+        <p>El archivo se lee en tu ordenador. Cuando la página ha cargado puedes incluso desconectar la red.</p>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-2h11"/></svg>
+        <h3>Sin recodificar</h3>
+        <p>La imagen y el sonido pasan byte a byte, tal como se grabaron.</p>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+        <h3>Gratis y de código abierto</h3>
+        <p>Licencia MIT, y una versión de línea de comandos para reparar una carpeta entera.</p>
+      </li>
+    </ul>
+
+    <section class="steps" aria-labelledby="steps-title">
+      <h2 class="section-title" id="steps-title">Cómo va una reparación</h2>
+      <ol>
+        <li><span class="step-n" aria-hidden="true">1</span><h3>Suelta el archivo</h3><p>argano mira dentro y te dice qué falla antes de hacer nada.</p></li>
+        <li><span class="step-n" aria-hidden="true">2</span><h3>Añade un clip, si te lo pide</h3><p>Casi todos los archivos piden tres segundos de vídeo de la misma cámara o app, con el mismo ajuste. Solo se lee.</p></li>
+        <li><span class="step-n" aria-hidden="true">3</span><h3>Guarda la copia que se abre</h3><p>Tu original se queda como estaba. La copia reparada es un archivo nuevo.</p></li>
+      </ol>
+    </section>
+
+    <div class="pair">
+      <section class="card panel" aria-labelledby="pb-title">
+        <h2 class="panel-title" id="pb-title">Grabaciones de Photo Booth</h2>
+        <p>Photo Booth en macOS puede dejar una grabación larga que no se abre, y es el archivo para el que nació argano. Photo Booth guarda sus ajustes fuera del vídeo, así que la reparación siempre pide una referencia: graba tres segundos en Photo Booth en el mismo Mac, al mismo tamaño, y dale ese clip a argano.</p>
+      </section>
+      <section class="card panel" aria-labelledby="priv-title">
+        <h2 class="panel-title" id="priv-title">Nada sale de tu ordenador</h2>
+        <p>El navegador lee el archivo del disco y pasa los bytes al código de esta página. Ningún servidor los ve y no hace falta cuenta. Abre el panel de red mientras se repara un archivo y no verás salir ninguna petición.</p>
+        <p class="fine">La página envía un recuento anónimo al abrirse, y otro solo si respondes a la pregunta del final. Ninguno lleva nada del vídeo. <a href="../privacy.html">Política de privacidad</a></p>
+      </section>
+    </div>
+
+    <section class="cannot-wrap" aria-labelledby="cannot-title">
+      <h2 class="section-title" id="cannot-title">Lo que no puede hacer</h2>
+      <ul class="cannot">
+        <li>No puede recuperar lo que nunca se escribió. Si la grabadora se paró antes de que los bytes llegaran al disco, no están en el archivo, y ninguna herramienta puede encontrarlos.</li>
+        <li>No recodifica nada. Los fotogramas que se grabaron mal vuelven exactamente igual de mal.</li>
+        <li>Lee vídeo H.264 y H.265 con sonido AAC. Cualquier otra cosa se nombra en el diagnóstico y no pasa de ahí.</li>
+        <li>Lee archivos MP4 y MOV, M4V incluido. No MKV, no AVI, no el formato raw de una cámara.</li>
+      </ul>
+      <p class="fine">El código está en GitHub: <a href="https://github.com/nerln/argano" rel="noopener">github.com/nerln/argano</a></p>
+    </section>
+  </section>
+
+  <!-- screen 2 ═══ what is wrong with it ════════════════════════════ -->
+  <section id="screen-diagnosis" class="screen" tabindex="-1" hidden aria-labelledby="dx-verdict">
+
+    <div class="card">
+      <p class="kicker">Diagnóstico</p>
+      <h1 class="verdict" id="dx-verdict"></h1>
+      <p class="detail" id="dx-detail"></p>
+
+      <dl class="facts" id="dx-facts"></dl>
+
+      <div class="struct">
+        <h2 class="sub">Qué hay dentro del archivo</h2>
+        <div class="struct-bar" id="dx-bar" aria-hidden="true"></div>
+        <p class="struct-read" id="dx-read"></p>
+        <ul class="legend" id="dx-legend"></ul>
+        <div class="table-scroll">
+          <table class="boxes" id="dx-table">
+            <caption class="visually-hidden">Los bloques principales del archivo, con su posición y tamaño</caption>
+            <thead>
+              <tr><th scope="col">Bloque</th><th scope="col">Empieza en</th><th scope="col">Tamaño</th><th scope="col">Parte</th></tr>
+            </thead>
+            <tbody id="dx-boxes"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card ref" id="ref-card">
+      <p class="kicker" id="ref-kicker"></p>
+      <h2 class="sub-title" id="ref-title"></h2>
+      <p id="ref-why"></p>
+      <ul class="ticks" id="ref-good"></ul>
+      <div class="row">
+        <button class="btn quiet" id="pick-ref"></button>
+        <span class="chosen" id="ref-chosen" hidden>
+          <span class="chosen-name" id="ref-name"></span>
+          <button class="btn quiet small" id="ref-clear">Quitar</button>
+        </span>
+        <span class="fine" id="ref-drop-hint">o suelta uno en este recuadro</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="row">
+        <button class="btn main" id="do-repair">Reparar este archivo</button>
+        <button class="btn quiet" id="pick-other">Elegir otro archivo</button>
+      </div>
+      <p class="fine" id="repair-hint"></p>
+    </div>
+  </section>
+
+  <!-- screen 3 ═══ the repair, which runs for minutes ════════════════ -->
+  <section id="screen-repair" class="screen" tabindex="-1" hidden aria-labelledby="rp-title">
+    <div class="card work">
+      <p class="kicker">Reparando</p>
+      <h1 class="filename" id="rp-title"></h1>
+
+      <div class="figures">
+        <span class="pct tabular" id="rp-pct">0%</span>
+        <span class="elapsed tabular" id="rp-elapsed"></span>
+      </div>
+      <div class="bar" id="rp-track" role="progressbar" aria-label="Progreso total"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="rp-bar"></i></div>
+
+      <ol class="stages" id="rp-stages">
+        <li data-stage="inspect"><span class="tick" aria-hidden="true"></span><span class="stage-name">Leer el archivo</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="scan"><span class="tick" aria-hidden="true"></span><span class="stage-name">Encontrar los fotogramas</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="audio"><span class="tick" aria-hidden="true"></span><span class="stage-name">Dividir el sonido en fotogramas</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="timeline"><span class="tick" aria-hidden="true"></span><span class="stage-name">Volver a poner los fotogramas en hora</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="write"><span class="tick" aria-hidden="true"></span><span class="stage-name">Escribir la copia reparada</span><span class="stage-bar"><i></i></span></li>
+        <li data-stage="verify"><span class="tick" aria-hidden="true"></span><span class="stage-name">Comprobar el resultado</span><span class="stage-bar"><i></i></span></li>
+      </ol>
+
+      <p class="note-line" id="rp-note" aria-live="polite"></p>
+      <p class="fine">El porcentaje es una estimación de todo el trabajo, porque algunas fases se miden mejor que otras. Una hora de 4K tarda unos minutos. El trabajo ocurre en esta página, así que la ventana se queda quieta unos segundos mientras corre una fase: es la reparación, no un fallo. Deja la pestaña abierta hasta que termine y no muevas el archivo, porque se va leyendo del disco.</p>
+    </div>
+  </section>
+
+  <!-- screen 4 ═══ what came back ═══════════════════════════════════ -->
+  <section id="screen-result" class="screen" tabindex="-1" hidden aria-labelledby="rs-title">
+    <div class="card">
+      <p class="kicker" id="rs-kicker"></p>
+      <h1 class="verdict" id="rs-title"></h1>
+      <p class="detail" id="rs-sub"></p>
+
+      <ul class="stats" id="rs-stats"></ul>
+
+      <div class="get">
+        <a class="btn main big" id="rs-download" download>Guardar el vídeo reparado</a>
+        <p class="get-name"><span id="rs-filename"></span> <span class="fine" id="rs-size"></span></p>
+      </div>
+      <p class="fine" id="rs-safe">Tu archivo no se ha tocado. argano lo ha leído y ha escrito uno nuevo, y la copia de arriba se queda en esta pestaña hasta que la guardes o salgas.</p>
+
+      <div class="row">
+        <button class="btn quiet" id="again">Reparar otro</button>
+      </div>
+
+      <!-- the only way to know whether a repair helped is to ask. one tap is
+           counted, and nothing about the video goes with it. -->
+      <div class="ask" id="rs-ask">
+        <p>Cuando lo hayas visto: ¿ha salvado tu vídeo?</p>
+        <div class="row">
+          <button class="btn quiet" id="ask-yes">Sí, se abre</button>
+          <button class="btn quiet" id="ask-no">No</button>
+        </div>
+      </div>
+      <p class="ask" id="rs-thanks" hidden>Gracias. La respuesta queda contada, y nada del vídeo ha salido con ella.</p>
+    </div>
+
+    <div id="rs-findings"></div>
+
+    <div class="card quiet-card" id="rs-loss"></div>
+
+    <div class="card quiet-card">
+      <h2 class="sub">Cómo se reconstruyó</h2>
+      <dl class="how" id="rs-how"></dl>
+    </div>
+  </section>
+
+  </div>
+
+  <!-- one hidden input per role. a button is what people press, and it opens
+       the input, which is the only thing a browser lets open a picker. -->
+  <input type="file" id="file-damaged" class="visually-hidden" tabindex="-1"
+         accept="video/*,.mov,.mp4,.m4v" aria-hidden="true">
+  <input type="file" id="file-reference" class="visually-hidden" tabindex="-1"
+         accept="video/*,.mov,.mp4,.m4v" aria-hidden="true">
+
+</main>
+
+<footer class="foot">
+  <p>Hecho por <a href="https://nerln.github.io/" rel="author">Eugenio Nerelli</a>. Gratis y de código abierto con licencia MIT.</p>
+  <p><a href="../privacy.html">Privacidad</a> · <a href="../terms.html">Condiciones</a></p>
+</footer>
+
+<!-- a browser with no module support never runs app.js at all, so the notice
+     for that case has to be plain old script, and it has to be defined before
+     the nomodule line below can call it. -->
+<script>
+  window.arganoStopped = function (why) {
+    var block = document.getElementById('too-old');
+    if (!block || !block.hasAttribute('hidden')) return;
+    document.getElementById('too-old-why').textContent = why;
+    block.removeAttribute('hidden');
+    var screens = document.getElementById('screens');
+    if (screens) screens.setAttribute('hidden', 'hidden');
+  };
+  /* app.js sets this the moment it runs. if it has not run by now the module
+     failed to load or failed to parse, both of which are silent. */
+  window.setTimeout(function () {
+    if (window.arganoReady) return;
+    window.arganoStopped("El código de la reparación no se ha cargado. Recarga la página; si vuelve a pasar, a la copia de argano que estás viendo le falta un archivo.");
+  }, 8000);
+</script>
+<script nomodule>
+  window.arganoStopped("Este navegador no carga módulos de JavaScript, que es como está hecho el código de la reparación.");
+</script>
+<script type="module" src="../app.js"></script>
+</body>
+</html>

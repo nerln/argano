@@ -16,12 +16,46 @@
  */
 
 import { diagnose, repair, RepairError } from './lib/repair.js';
+import { LANGS, LOCALES, words, fromLib } from './i18n.js';
 
 /* The inline script in the page is watching for this. Setting it says the
    module loaded, parsed and ran. */
 window.arganoReady = true;
 
 const $ = (id) => document.getElementById(id);
+
+/* The page says which language it is in, and every sentence below comes from
+   that language in i18n.js. A sentence the repair wrote in English is said
+   again in this language when i18n.js knows it, and otherwise replaced by the
+   fallback given, so a half translated screen never mixes two languages. */
+const LANG = LANGS.includes((document.documentElement.lang || '').slice(0, 2))
+  ? document.documentElement.lang.slice(0, 2)
+  : 'en';
+const W = words(LANG);
+const LOCALE = LOCALES[LANG];
+const say = (text, fallback = text) => fromLib(LANG, text) ?? fallback;
+
+/* The page counts two things and nothing else: that it was opened, and the
+   answer to "did this save your video" when someone gives one. Each is a
+   single request to GoatCounter carrying the page address, the site that sent
+   the visit and the campaign in the link. No cookie, no identifier, and never
+   a byte of the video. A copy opened from disk, on localhost or in a fork
+   served from anywhere else counts nothing. */
+const COUNTER = 'https://nerln.goatcounter.com/count';
+
+function tally(path, title, event = false) {
+  if (location.origin !== 'https://nerln.github.io') return;
+  const q = new URLSearchParams({ p: path, t: title, e: String(event) });
+  if (!event) {
+    q.set('r', document.referrer);
+    q.set('q', location.search);
+  }
+  q.set('rnd', Math.random().toString(36).slice(2));
+  fetch(`${COUNTER}?${q}`, { mode: 'no-cors', credentials: 'omit', keepalive: true })
+    .catch(() => {});
+}
+
+tally(location.pathname, document.title);
 
 const state = {
   file: null,          // the damaged video, a File from a picker or a drop
@@ -39,12 +73,12 @@ const state = {
    one number that keeps moving forwards. They are an estimate and the screen
    says so, since the scan is the only stage whose length is known in advance. */
 const STAGES = [
-  { id: 'inspect', label: 'Read the file', weight: 3 },
-  { id: 'scan', label: 'Find the frames', weight: 40 },
-  { id: 'audio', label: 'Split the sound into frames', weight: 15 },
-  { id: 'timeline', label: 'Put the frames back on a clock', weight: 4 },
-  { id: 'write', label: 'Write the repaired copy', weight: 26 },
-  { id: 'verify', label: 'Check the result', weight: 12 },
+  { id: 'inspect', label: W.stInspect, weight: 3 },
+  { id: 'scan', label: W.stScan, weight: 40 },
+  { id: 'audio', label: W.stAudio, weight: 15 },
+  { id: 'timeline', label: W.stTimeline, weight: 4 },
+  { id: 'write', label: W.stWrite, weight: 26 },
+  { id: 'verify', label: W.stVerify, weight: 12 },
 ];
 const TOTAL_WEIGHT = STAGES.reduce((sum, s) => sum + s.weight, 0);
 
@@ -53,7 +87,10 @@ const TOTAL_WEIGHT = STAGES.reduce((sum, s) => sum + s.weight, 0);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const count = (n) => Number(n || 0).toLocaleString('en-GB');
+const count = (n) => Number(n || 0).toLocaleString(LOCALE);
+const decimals = (n, places) => n.toLocaleString(LOCALE, {
+  minimumFractionDigits: places, maximumFractionDigits: places,
+});
 
 /* Decimal units, the ones a file manager shows, so the numbers here agree with
    the numbers in Finder. Gigabytes get two decimals: a file of 1.28 GB with
@@ -67,7 +104,7 @@ function bytes(n) {
   let i = 0;
   while (scaled >= 1000 && i < units.length - 1) { scaled /= 1000; i += 1; }
   const places = scaled >= 10 ? 0 : i >= 2 ? 2 : 1;
-  return `${scaled.toFixed(places)} ${units[i]}`;
+  return `${decimals(scaled, places)} ${units[i]}`;
 }
 
 /* Durations read as 15m 36s, 1h 04m 12s, 42s. Padding the middle unit keeps
@@ -91,13 +128,15 @@ const percent = (part, whole) => (whole > 0 ? (part / whole) * 100 : 0);
 
 function share(part, whole) {
   const p = percent(part, whole);
-  if (p > 0 && p < 0.1) return 'under 0.1%';
-  return `${p >= 10 ? Math.round(p) : p.toFixed(1)}%`;
+  if (p > 0 && p < 0.1) return W.under;
+  return (p / 100).toLocaleString(LOCALE, {
+    style: 'percent', maximumFractionDigits: p >= 10 ? 0 : 1, minimumFractionDigits: p >= 10 ? 0 : 1,
+  });
 }
 
 /* Track descriptions arrive as `vide:avc1`. The four letter codes are how the
    file format writes them down, and nobody outside this project reads them. */
-const HANDLERS = { vide: 'picture', soun: 'sound', sbtl: 'subtitles', text: 'text', meta: 'data' };
+const HANDLERS = W.handlers;
 const CODECS = {
   avc1: 'H.264', avc3: 'H.264', hvc1: 'HEVC', hev1: 'HEVC',
   mp4a: 'AAC', sowt: 'PCM', twos: 'PCM', lpcm: 'PCM', 'raw ': 'PCM', in24: 'PCM', fl32: 'PCM',
@@ -105,21 +144,21 @@ const CODECS = {
 
 function trackWords(track) {
   const [handler, codec] = String(track || '').split(':');
-  const kind = HANDLERS[handler] || handler || 'track';
+  const kind = HANDLERS[handler] || handler || W.track;
   const name = CODECS[codec] || codec;
   return name ? `${kind} (${name})` : kind;
 }
 
 /* Box names, in the words used on the rest of the screen. */
 const BOX_ROLE = {
-  mdat: { role: 'media', words: 'the audio and video themselves' },
-  moov: { role: 'index', words: 'the index that says where every frame starts' },
-  ftyp: { role: 'other', words: 'a few bytes naming the file format' },
-  free: { role: 'other', words: 'padding left by the recorder' },
-  skip: { role: 'other', words: 'padding left by the recorder' },
-  wide: { role: 'other', words: 'padding left by the recorder' },
-  moof: { role: 'other', words: 'a fragment header' },
-  mfra: { role: 'other', words: 'a fragment index' },
+  mdat: { role: 'media', words: W.boxWords.mdat },
+  moov: { role: 'index', words: W.boxWords.moov },
+  ftyp: { role: 'other', words: W.boxWords.ftyp },
+  free: { role: 'other', words: W.boxWords.free },
+  skip: { role: 'other', words: W.boxWords.skip },
+  wide: { role: 'other', words: W.boxWords.wide },
+  moof: { role: 'other', words: W.boxWords.moof },
+  mfra: { role: 'other', words: W.boxWords.mfra },
 };
 const roleOf = (name) => (BOX_ROLE[name] ? BOX_ROLE[name].role : 'other');
 
@@ -137,6 +176,10 @@ function show(name) {
   $('top-file').hidden = !state.file || name === 'open';
   if (state.file) $('top-file').textContent = state.file.name;
   if (name !== 'result') dropSaveLink();
+  if (name === 'result') {
+    $('rs-ask').hidden = false;
+    $('rs-thanks').hidden = true;
+  }
   clearAlert();
   window.scrollTo({ top: 0, behavior: 'auto' });
   $(`screen-${name}`).focus({ preventScroll: true });
@@ -157,9 +200,14 @@ function clearAlert() {
    than a diagnosis, and saying which is which is more honest than dressing
    both up the same way. */
 function reason(err) {
-  if (err instanceof RepairError) return err.message;
+  if (err instanceof RepairError) {
+    // A file with nothing to repair is refused with the diagnosis itself, so
+    // it is said the way the diagnosis screen says it.
+    if (state.diagnosis && err.message === state.diagnosis.detail) return detailFor(state.diagnosis);
+    return say(err.message);
+  }
   const detail = err && err.message ? err.message : String(err);
-  return `The repair stopped part way through. What it reported was: ${detail}`;
+  return W.stopped(detail);
 }
 
 /* Let the browser paint before handing the thread to a stage that will hold
@@ -180,18 +228,18 @@ function painted() {
 
 async function openFile(file) {
   if (state.running) {
-    fail('A repair is running on this tab. Wait for it to finish, then open the next file.');
+    fail(W.busy);
     return;
   }
   if (!file || !file.size) {
-    fail('That file came through empty. If it is on a phone or a network folder, copy it to this computer first.');
+    fail(W.emptyFile);
     return;
   }
 
   const button = $('pick-damaged');
   const wasLabelled = button.textContent;
   button.disabled = true;
-  button.textContent = 'Reading the file…';
+  button.textContent = W.readingFile;
   clearAlert();
   await painted();
   try {
@@ -202,7 +250,7 @@ async function openFile(file) {
     renderDiagnosis(diagnosis);
     show('diagnosis');
   } catch (err) {
-    fail(`That file could not be read: ${err && err.message ? err.message : String(err)}`);
+    fail(W.cannotRead(err && err.message ? say(err.message) : String(err)));
   } finally {
     button.disabled = false;
     button.textContent = wasLabelled;
@@ -215,17 +263,17 @@ function renderDiagnosis(dx) {
   const size = Number(dx.size || 0);
   const media = Number(dx.mediaSize || 0);
 
-  $('dx-verdict').textContent = sentence(dx.verdict) || 'Something is wrong with this file';
-  $('dx-detail').textContent = dx.detail || '';
+  $('dx-verdict').textContent = W.verdicts[dx.verdict] || sentence(dx.verdict) || W.somethingWrong;
+  $('dx-detail').textContent = detailFor(dx);
 
   const tracks = Array.isArray(dx.tracks) ? dx.tracks : [];
   const facts = [
-    ['File', esc(dx.name || state.file.name)],
-    ['Size', `${esc(bytes(size))} <span class="fine">(${esc(count(size))} bytes)</span>`],
-    ['Media', `${esc(bytes(media))} <span class="fine">(${esc(share(media, size))} of the file)</span>`],
-    ['Tracks', tracks.length
+    [W.fFile, esc(dx.name || state.file.name)],
+    [W.fSize, `${esc(bytes(size))} <span class="fine">${esc(W.inBytes(count(size)))}</span>`],
+    [W.fMedia, `${esc(bytes(media))} <span class="fine">${esc(W.ofTheFile(share(media, size)))}</span>`],
+    [W.fTracks, tracks.length
       ? esc(tracks.map(trackWords).join(', '))
-      : '<span class="fine">none named, because the part that names them is gone</span>'],
+      : `<span class="fine">${esc(W.noTracks)}</span>`],
   ];
   $('dx-facts').innerHTML = facts
     .map(([term, value]) => `<dt>${term}</dt><dd>${value}</dd>`)
@@ -234,6 +282,17 @@ function renderDiagnosis(dx) {
   renderStructure(dx, size, media);
   renderReference(dx);
   updateRepairHint();
+}
+
+/* The repair explains its verdict in English. In English that sentence is
+   shown as it is; in another language the same sentence is written again from
+   the same numbers. */
+function detailFor(dx) {
+  const write = W.details[dx.verdict];
+  if (LANG === 'en' || !write) return dx.detail || '';
+  const media = Number(dx.mediaSize || 0);
+  const size = Number(dx.size || 0);
+  return write(bytes(media), size ? Math.round((media / size) * 100) : 0);
 }
 
 /* The bar is drawn strictly to scale: each box sits at its real offset and is
@@ -255,13 +314,13 @@ function renderStructure(dx, size, media) {
   // media at all must not be told that all of its frames are still there.
   let tail;
   if (!media) {
-    tail = 'There is no block of media in this file, so there is nothing here to index.';
+    tail = W.tailNoMedia;
   } else if (!dx.needsReference) {
-    tail = 'The index beside it can still be read, so the file can describe itself.';
+    tail = W.tailReadable;
   } else {
-    tail = 'Every frame is still in there. What is missing is the index that says where each one starts, which is why nothing will play it.';
+    tail = W.tailMissing;
   }
-  $('dx-read').innerHTML = `<b>${esc(share(media, size))} of this file is media.</b> ${esc(tail)}`;
+  $('dx-read').innerHTML = `<b>${esc(W.mediaShare(share(media, size)))}</b> ${esc(tail)}`;
 
   const kinds = [];
   const seen = new Set();
@@ -269,10 +328,10 @@ function renderStructure(dx, size, media) {
     if (seen.has(name)) continue;
     seen.add(name);
     const known = BOX_ROLE[name];
-    kinds.push(`<li><span class="swatch is-${roleOf(name)}"></span><b>${esc(name)}</b> ${esc(known ? known.words : "part of the file's structure")}</li>`);
+    kinds.push(`<li><span class="swatch is-${roleOf(name)}"></span><b>${esc(name)}</b> ${esc(known ? known.words : W.boxOther)}</li>`);
   }
   if (!hasIndex) {
-    kinds.push('<li><span class="swatch is-gone"></span><b>moov</b> the index, never written</li>');
+    kinds.push(`<li><span class="swatch is-gone"></span><b>moov</b> ${esc(W.indexNever)}</li>`);
   }
   $('dx-legend').innerHTML = kinds.join('');
 
@@ -295,26 +354,10 @@ function renderReference(dx) {
   // that parsed as nothing.
   $('ref-card').hidden = !dx.repairable;
   $('ref-card').classList.toggle('is-needed', needed);
-  $('ref-kicker').textContent = needed ? 'Needed for this file' : 'Optional for this file';
-  $('ref-title').textContent = needed
-    ? 'Pick a working video to read the settings from'
-    : 'This file can describe itself';
-
-  $('ref-why').textContent = needed
-    ? 'A recording that was never finalised has lost the part that says how the picture was '
-      + 'encoded, and those settings cannot be guessed from the bytes alone. argano reads them '
-      + 'from a video that still plays, then applies them to yours. The reference is only read, '
-      + 'and it is not copied into the result.'
-    : 'The index in this file can still be read, so the settings are taken from the file itself. '
-      + 'Adding a reference is optional. It is worth doing if the repaired copy comes out with '
-      + 'the wrong colours or the wrong size.';
-
-  $('ref-good').innerHTML = needed ? [
-    '<b>The same camera or app</b> that made the damaged file.',
-    '<b>The same recording setting</b>: the same resolution and frame rate, from the same mode or preset.',
-    '<b>Any length.</b> Three seconds is enough, and a short clip is read faster.',
-    '<b>Straight off the device.</b> A clip that other software has already exported describes that software, not your camera.',
-  ].map((line) => `<li>${line}</li>`).join('') : '';
+  $('ref-kicker').textContent = needed ? W.refNeededKicker : W.refOptionalKicker;
+  $('ref-title').textContent = needed ? W.refNeededTitle : W.refOptionalTitle;
+  $('ref-why').textContent = needed ? W.refNeededWhy : W.refOptionalWhy;
+  $('ref-good').innerHTML = needed ? W.refGood.map((line) => `<li>${line}</li>`).join('') : '';
 
   setReference(null);
 }
@@ -326,9 +369,9 @@ function setReference(file) {
   if (file) {
     $('ref-name').textContent = file.name;
     $('ref-name').title = file.name;
-    $('pick-ref').textContent = 'Choose a different one';
+    $('pick-ref').textContent = W.chooseDifferent;
   } else {
-    $('pick-ref').textContent = 'Choose reference video';
+    $('pick-ref').textContent = W.chooseRef;
   }
   updateRepairHint();
 }
@@ -337,15 +380,13 @@ function updateRepairHint() {
   const needed = Boolean(state.diagnosis && state.diagnosis.needsReference);
   const hint = $('repair-hint');
   if (state.diagnosis && !state.diagnosis.repairable) {
-    hint.textContent = 'There is no media in this file to rebuild an index around, so there is '
-      + 'nothing here for argano to work on.';
+    hint.textContent = W.hintNoMedia;
     hint.classList.add('is-warning');
   } else if (needed && !state.reference) {
-    hint.textContent = 'A reference video is needed before this one can be repaired.';
+    hint.textContent = W.hintNeedRef;
     hint.classList.add('is-warning');
   } else {
-    hint.textContent = 'Your file is only read. A repaired copy is built in this tab and offered to you '
-      + 'to save when it is done. A long recording takes a few minutes.';
+    hint.textContent = W.hintReady;
     hint.classList.remove('is-warning');
   }
 }
@@ -359,7 +400,7 @@ async function startRepair() {
   // and not told why. Sending them to the picker, with the reason spoken, is
   // the same protection and it moves them forwards.
   if (needed && !state.reference) {
-    fail('This file needs a reference video first: it has nothing left in it that says how the picture was encoded.');
+    fail(W.needRefFirst);
     $('pick-ref').focus();
     return;
   }
@@ -396,7 +437,7 @@ function beginProgress() {
   $('rp-pct').textContent = '0%';
   $('rp-bar').style.width = '0%';
   $('rp-track').setAttribute('aria-valuenow', '0');
-  $('rp-note').textContent = 'Starting';
+  $('rp-note').textContent = W.starting;
   for (const item of $('rp-stages').children) {
     item.classList.remove('is-done', 'is-active');
     item.removeAttribute('aria-current');
@@ -409,7 +450,7 @@ function beginProgress() {
 
 function tickClock() {
   const seconds = (Date.now() - state.startedAt) / 1000;
-  $('rp-elapsed').textContent = `${duration(seconds)} so far`;
+  $('rp-elapsed').textContent = W.soFar(duration(seconds));
 }
 
 function stopClock() {
@@ -445,7 +486,8 @@ function renderProgress(stage, fraction, note) {
   $('rp-bar').style.width = `${overall.toFixed(1)}%`;
   $('rp-track').setAttribute('aria-valuenow', String(Math.floor(overall)));
 
-  const line = note || (current >= 0 && current < STAGES.length ? STAGES[current].label.toLowerCase() : '');
+  const label = current >= 0 && current < STAGES.length ? STAGES[current].label : '';
+  const line = note ? say(note, label) : label;
   if (line && $('rp-note').textContent !== sentence(line)) $('rp-note').textContent = sentence(line);
 }
 
@@ -453,22 +495,14 @@ function renderProgress(stage, fraction, note) {
 
 function timingWords(model) {
   const value = String(model || '').trim();
-  if (!value) return 'the order the frames were written in';
-  if (value === 'audio-anchored') {
-    return 'the audio track <em>(each picture placed by the sound recorded beside it, which is the truest clock a file like this has)</em>';
-  }
-  if (value.startsWith('fixed')) {
-    return `an even rate, ${esc(value.replace(/^fixed\s*/, ''))} <em>(there was no audio to follow, so the frames were spread evenly)</em>`;
-  }
-  if (value === 'no video') return 'no video track was found';
+  if (!value) return W.timingDefault;
+  if (value === 'audio-anchored') return W.timingAudio;
+  if (value.startsWith('fixed')) return W.timingFixed(esc(value.replace(/^fixed\s*/, '')));
+  if (value === 'no video') return W.timingNoVideo;
   return esc(value);
 }
 
-const DAMAGE_WORDS = {
-  'unreadable-audio': 'sound that could not be read',
-  'unreadable-tail': 'an unreadable stretch at the end of the media',
-  garbage: 'bytes that matched no frame',
-};
+const DAMAGE_WORDS = W.damageWords;
 
 /* The repaired file is a Blob living in this tab, so the link that saves it
    holds the only handle to it. The old one is let go whenever a new one is
@@ -498,24 +532,22 @@ function renderResult(result) {
   const damage = Array.isArray(result.damage) ? result.damage : [];
   const lost = Number(result.lostSeconds || 0);
 
-  $('rs-kicker').textContent = errors.length ? 'Finished, with problems' : 'Finished';
+  $('rs-kicker').textContent = errors.length ? W.kickerProblems : W.kickerDone;
   $('rs-kicker').classList.toggle('is-bad', errors.length > 0);
   $('rs-title').textContent = errors.length
-    ? 'Repaired, and worth checking'
+    ? W.titleCheck
     : damage.length
-      ? 'Repaired, with some loss'
-      : 'Repaired';
-  $('rs-sub').textContent = errors.length
-    ? 'A new file was built. The checks found something that may stop it playing everywhere, so watch it through before you delete anything.'
-    : 'A new file was built. Nothing was encoded again, so the picture and the sound are the ones you recorded.';
+      ? W.titleLoss
+      : W.titleDone;
+  $('rs-sub').textContent = errors.length ? W.subCheck : W.subDone;
 
   const width = Number(result.width || 0);
   const height = Number(result.height || 0);
   const stats = [
-    [duration(result.duration), 'of video'],
-    [count(result.videoFrames), 'video frames'],
-    [count(result.audioFrames), 'audio frames'],
-    [width && height ? `${width}×${height}` : 'unknown', 'frame size'],
+    [duration(result.duration), W.statVideo],
+    [count(result.videoFrames), W.statVideoFrames],
+    [count(result.audioFrames), W.statAudioFrames],
+    [width && height ? `${width}×${height}` : W.unknown, W.statFrameSize],
   ];
   $('rs-stats').innerHTML = stats
     .map(([value, name]) => `<li><span class="stat-value">${esc(value)}</span><span class="stat-name">${esc(name)}</span></li>`)
@@ -524,21 +556,21 @@ function renderResult(result) {
   setSaveLink(result);
 
   $('rs-findings').innerHTML = errors
-    .map((f) => finding('error', f.message))
-    .concat(warnings.map((f) => finding('warning', f.message)))
+    .map((f) => finding('error', say(f.message)))
+    .concat(warnings.map((f) => finding('warning', say(f.message))))
     .join('');
 
   renderLoss(damage, lost);
 
   $('rs-how').innerHTML = [
-    ['Timing from', timingWords(result.timingModel)],
-    ['Codec settings from', esc(result.profileSource || 'the file itself')],
-    ['Quality', 'untouched. The media bytes in the new file are the media bytes from the old one.'],
+    [W.howTiming, timingWords(result.timingModel)],
+    [W.howSettings, esc(result.profileSource ? say(result.profileSource) : W.fileItself)],
+    [W.howQuality, W.howQualityValue],
   ].map(([term, value]) => `<dt>${term}</dt><dd>${value}</dd>`).join('');
 }
 
 function finding(level, message) {
-  const tag = level === 'error' ? 'Error' : 'Warning';
+  const tag = level === 'error' ? W.tagError : W.tagWarning;
   return `<div class="finding is-${level}"${level === 'error' ? ' role="alert"' : ''}>
     <span class="finding-tag">${tag}</span><span>${esc(sentence(message))}</span>
   </div>`;
@@ -550,32 +582,31 @@ function finding(level, message) {
 function renderLoss(damage, lost) {
   const box = $('rs-loss');
   if (!damage.length) {
-    box.innerHTML = `<h2 class="sub">What was lost</h2>
-      <p class="loss-line"><b>Nothing.</b> Every byte of the media was read, and all of it is in the new file.</p>`;
+    box.innerHTML = `<h2 class="sub">${esc(W.lossTitle)}</h2>
+      <p class="loss-line">${W.lossNone}</p>`;
     return;
   }
 
   const total = damage.reduce((sum, d) => sum + Number(d.length || 0), 0);
-  const stretches = damage.length === 1 ? 'one stretch' : `${count(damage.length)} stretches`;
+  const stretches = damage.length === 1 ? W.oneStretch : W.stretches(count(damage.length));
   const cost = lost >= 1
-    ? `That is about ${esc(duration(lost))} of the recording.`
+    ? W.lossAbout(esc(duration(lost)))
     : lost > 0
-      ? 'That is under a second of the recording.'
+      ? W.lossUnderSecond
       : '';
 
   const rows = damage.slice(0, 12).map((d) => `
     <li>
-      <span class="at">at ${esc(bytes(d.offset))}</span>
+      <span class="at">${esc(W.lossAt(bytes(d.offset)))}</span>
       <span class="len">${esc(bytes(d.length))}</span>
-      <span class="what">${esc(DAMAGE_WORDS[d.kind] || d.kind || 'unreadable')}</span>
+      <span class="what">${esc(DAMAGE_WORDS[d.kind] || d.kind || W.unreadable)}</span>
     </li>`).join('');
   const more = damage.length > 12
-    ? `<p class="fine">${esc(count(damage.length - 12))} shorter stretches are not listed.</p>`
+    ? `<p class="fine">${esc(W.lossMore(count(damage.length - 12)))}</p>`
     : '';
 
-  box.innerHTML = `<h2 class="sub">What was lost</h2>
-    <p class="loss-line"><b>${esc(stretches)} of the file could not be read</b>, ${esc(bytes(total))} in total. ${cost}
-    Everything on either side of them was kept, so the recording plays through with those moments missing.</p>
+  box.innerHTML = `<h2 class="sub">${esc(W.lossTitle)}</h2>
+    <p class="loss-line">${W.lossLine(esc(stretches), esc(bytes(total)), cost)}</p>
     <ul class="damage">${rows}</ul>${more}`;
 }
 
@@ -619,6 +650,16 @@ $('ref-clear').addEventListener('click', () => {
 
 $('do-repair').addEventListener('click', startRepair);
 $('again').addEventListener('click', reset);
+
+// The answer is the one number that says whether argano helps, so it is
+// asked once per repair and counted like a visit, with nothing from the file.
+for (const [id, answer] of [['ask-yes', 'worked'], ['ask-no', 'failed']]) {
+  $(id).addEventListener('click', () => {
+    tally(`/argano/repair-${answer}`, `Repair ${answer}`, true);
+    $('rs-ask').hidden = true;
+    $('rs-thanks').hidden = false;
+  });
+}
 $('start-over').addEventListener('click', reset);
 
 // Saving is the browser's job from here. The link is left in place, because
@@ -626,13 +667,13 @@ $('start-over').addEventListener('click', reset);
 $('rs-download').addEventListener('click', (e) => {
   if (!state.url) {
     e.preventDefault();
-    fail('That copy is no longer held in this tab. Repair the file again to get it back.');
+    fail(W.copyGone);
   }
 });
 
 function reset() {
   if (state.running) {
-    fail('A repair is running on this tab. Wait for it to finish, then open the next file.');
+    fail(W.busy);
     return;
   }
   stopClock();
@@ -721,8 +762,48 @@ refCard.addEventListener('drop', (e) => {
    module check's braces, and it says which thing is missing. */
 if (typeof File === 'undefined' || typeof File.prototype.arrayBuffer !== 'function'
     || typeof URL.createObjectURL !== 'function') {
-  window.arganoStopped('This browser cannot hand a chosen file to a page as bytes, which is '
-    + 'the one thing the repair needs before it can start.');
+  window.arganoStopped(W.noBytes);
 } else {
+  setReference(null);
   show('open');
 }
+
+/* ---------------- theme and language ---------------- */
+
+/* The head of the page has already chosen light or dark before the first
+   paint. The button flips it and remembers the choice in this browser only;
+   with no choice made, the page keeps following the system as it changes. */
+const THEME_KEY = 'argano-theme';
+
+function savedTheme() {
+  try { return localStorage.getItem(THEME_KEY); } catch { return null; }
+}
+
+$('theme').addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem(THEME_KEY, next); } catch { /* private window: it lasts this visit */ }
+});
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (savedTheme()) return;
+  document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+});
+
+/* Someone whose browser asks for Italian or Spanish and lands on another
+   language is offered theirs, once, as a link. Nobody is moved without
+   asking, and someone who arrived here from another argano page has already
+   chosen. */
+(function offerLanguage() {
+  if (document.referrer.startsWith(`${location.origin}/argano/`)) return;
+  const wanted = (navigator.languages || [navigator.language || ''])
+    .map((l) => String(l).slice(0, 2).toLowerCase())
+    .find((l) => LANGS.includes(l));
+  if (!wanted || wanted === LANG) return;
+  const up = LANG === 'en' ? '' : '../';
+  const link = $('lang-suggest');
+  link.href = wanted === 'en' ? (up || './') : `${up}${wanted}/`;
+  link.lang = wanted;
+  link.textContent = words(wanted).readIn;
+  link.hidden = false;
+})();

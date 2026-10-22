@@ -3,7 +3,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", ".github/workflows/pages.yml"]
+    paths: ["web/**", "tools/page.html", "tools/pages.mjs", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -29,6 +29,10 @@ jobs:
       # ports of one algorithm are kept from drifting apart.
       - run: node --test web/lib/aac.test.mjs
       - run: node --test web/lib/engine.test.mjs
+      # The three language pages are written from tools/page.html and
+      # web/i18n.js. A page that was not rewritten after a change to either
+      # would ship old words, so the deploy stops here instead.
+      - run: node tools/pages.mjs --check
 
   deploy:
     needs: test

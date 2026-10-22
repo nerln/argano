@@ -1,917 +1,701 @@
-/* argano on the web, one hand-written stylesheet. no dependencies, no build step.
+/* argano, the look.
  *
- * This is the desktop app's design, moved onto a page that anybody can open.
- * The shape is the same: one file at a time, four screens in a row, and a
- * middle screen that sits there for minutes. What the design has to carry is
- * not a feature list, it is a feeling. Someone opens this holding a recording
- * they think they have lost. So:
+ * The same world as nerln.github.io, so the tool reads as part of the site it
+ * belongs to: Apple style neutrals drawn as light and dark pairs, one blue
+ * accent tuned for AA contrast in both, one family (Mona Sans, served from
+ * here) with headings at weight 700 and 108 percent width, pills for every
+ * control and 16 to 28 px rectangles for everything that holds content. The
+ * body is 17 px on a phone as on a desk, and every tap target is 44 px tall.
  *
- *   1. the empty state is the first thing anyone sees and gets designed,
- *      not left as grey centred text with a file input in the middle;
- *   2. the sentence that says nothing is uploaded sits on that first screen,
- *      in its own block with the accent on it, because on a web page it is
- *      the first question anyone has and the reason this page exists;
- *   3. the diagnosis leads with a picture of the file, because seeing one
- *      long block of media next to a missing sliver of index is the whole
- *      reassurance in one glance, and no paragraph does it as fast;
- *   4. the repair screen has to look alive for four minutes without lying
- *      about what it knows, so it shows the stage it is really in and an
- *      elapsed clock that keeps moving;
- *   5. the result page is specific about loss. A tool that says "done!"
- *      after eating nine seconds of a wedding is worse than one that says
- *      which nine seconds;
- *   6. a little grain, because flat dark fills band on wide gamut displays
- *      and banding reads as cheap;
- *   7. 13px body copy, which is the system size. Web defaults of 15 to 16px
- *      are the clearest tell that you are looking at a page inside a window.
- *
- * The accent is verdigris, the green that copper turns after a long time in
- * water. It was chosen for three reasons. It is the colour of metal that has
- * been recovered rather than metal that is new, which is what this app does.
- * It is nowhere near the amber and the red that mark damage and failure here,
- * so "we got it back" can never be misread as "something is wrong". And it is
- * not the brass of the sibling app, because these are two different tools and
- * a shared palette would say otherwise. Warm graphite underneath it, not the
- * navy that every dark dashboard ships with, and warm neutral greys rather
- * than the zero-chroma ones that make an interface feel machine-made.
- *
- * Contrast was measured, not guessed. Every text colour clears 4.5:1 against
- * every surface it is allowed to sit on, in both themes. The values that
- * failed are in the comments beside the ones that replaced them.
+ * Colours are only ever read from the names below. A hex value anywhere else
+ * would be a colour with no twin for the other theme.
  */
 
-:root {
-  color-scheme: dark light;
-
-  --shell: #131416;
-  --content: #1A1B1D;
-  --card: #212327;
-  --card-hi: #282A2E;
-  --sunken: #111214;
-
-  --line: rgba(255, 255, 255, 0.07);
-  --line-2: rgba(255, 255, 255, 0.13);
-  --edge: rgba(255, 255, 255, 0.06);
-
-  --text: #ECEEEF;
-  --text-2: #A6ABB0;          /* 7.4:1 on --content */
-  --text-3: #93989E;          /* 4.9:1 on --card-hi, the tightest pairing here */
-
-  --accent: #48C478;
-  --accent-ink: #04221B;      /* 7.8:1 on --accent, for text sitting on the fill */
-  --accent-dim: rgba(72, 196, 120, 0.14);
-  --accent-glow: rgba(72, 196, 120, 0.26);
-  /* The same hue at zero alpha, for the far end of every gradient. The
-     `transparent` word is black with no alpha, and an engine that blends the
-     two ends without premultiplying drags the whole wash towards grey. This
-     was visible: the drop target came out as a grey slab in light mode. */
-  --accent-fade: rgba(72, 196, 120, 0);
-
-  --warn: #E3AC4A;
-  --danger: #F0837A;
-  /* The index box gets its own colour in the structure bar. It is a fill and
-     a swatch, never text, so it answers to the 3:1 rule for shapes. */
-  --steel: #7E96A8;
-
-  --r-xs: 4px;
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
-
-  --column: 660px;
-
-  /* Two stacks, on purpose. Body copy stays on the system face because at
-     13px that is what makes a window feel native. Display type moves to a
-     geometric face with weight behind it: SF Pro Display reaches 800, and
-     Avenir Next is on every Mac as a fallback with more character than
-     Helvetica. No web fonts. The page has to work with the network off after
-     it has loaded once, and a font request would break that promise. */
-  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-  --font-display: "SF Pro Display", -apple-system, "Avenir Next", "Segoe UI Variable Display",
-                  "Segoe UI", system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.24);
-  --shadow-3: 0 28px 70px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(0, 0, 0, 0.3);
-
-  --fast: 130ms;
-  --normal: 220ms;
-  --slow: 380ms;
-  --ease: cubic-bezier(0.25, 1, 0.5, 1);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+@font-face {
+  font-family: "Mona Sans";
+  src: url("fonts/mona-sans.woff2") format("woff2");
+  font-weight: 200 900;
+  font-stretch: 75% 125%;
+  font-display: swap;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --shell: #EDE9E4;
-    --content: #FAF8F5;
-    --card: #FFFFFF;
-    --card-hi: #F3F0EC;
-    --sunken: #EFEBE6;
+:root,
+:root[data-theme="light"] {
+  --surface: #ffffff;
+  --surface-raised: #f5f5f7;
+  --surface-sunken: #f5f5f7;
+  --border: #d2d2d7;
+  --border-strong: #b4b4bb;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --accent: #0a64d8;
+  --accent-soft: color-mix(in srgb, #0a64d8 10%, transparent);
+  --accent-ink: #ffffff;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.1);
+  --scrim: rgb(255 255 255 / 0.72);
+}
 
-    --line: rgba(26, 22, 18, 0.09);
-    --line-2: rgba(26, 22, 18, 0.16);
-    --edge: rgba(255, 255, 255, 0.9);
+:root[data-theme="dark"] {
+  --surface: #000000;
+  --surface-raised: #1c1c1e;
+  --surface-sunken: #141416;
+  --border: #2c2c2e;
+  --border-strong: #48484a;
+  --text: #f5f5f7;
+  --text-muted: #a1a1a6;
+  --accent: #4c9bff;
+  --accent-soft: color-mix(in srgb, #4c9bff 16%, transparent);
+  --accent-ink: #000000;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px -12px rgb(0 0 0 / 0.7);
+  --scrim: rgb(0 0 0 / 0.72);
+}
 
-    --text: #1A1B1D;
-    --text-2: #565B60;        /* 6.5:1 on --content */
-    --text-3: #63686E;        /* 4.7:1 on --sunken, the tightest pairing here */
-
-    /* Verdigris has to go a long way down in light mode. The dark value
-       reads as 1.6:1 on white, which is a decoration, not a colour a
-       sentence can be written in. */
-    --accent: #0A6A57;        /* 6.2:1 on --content */
-    --accent-ink: #FFFFFF;    /* 6.5:1 on --accent */
-    --accent-dim: rgba(10, 106, 87, 0.10);
-    --accent-glow: rgba(10, 106, 87, 0.16);
-    --accent-fade: rgba(10, 106, 87, 0);
-
-    --warn: #7E5610;          /* 6.1:1 on --content */
-    --danger: #B03A2E;
-    --steel: #4A6070;
-
-    --shadow-1: 0 1px 2px rgba(26, 22, 18, 0.07);
-    --shadow-2: 0 4px 14px rgba(26, 22, 18, 0.09), 0 1px 3px rgba(26, 22, 18, 0.06);
-    --shadow-3: 0 28px 70px rgba(26, 22, 18, 0.17), 0 8px 20px rgba(26, 22, 18, 0.09);
+/* with scripts off nothing sets data-theme, so the system decides here. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --surface: #000000;
+    --surface-raised: #1c1c1e;
+    --surface-sunken: #141416;
+    --border: #2c2c2e;
+    --border-strong: #48484a;
+    --text: #f5f5f7;
+    --text-muted: #a1a1a6;
+    --accent: #4c9bff;
+    --accent-soft: color-mix(in srgb, #4c9bff 16%, transparent);
+    --accent-ink: #000000;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px -12px rgb(0 0 0 / 0.7);
+    --scrim: rgb(0 0 0 / 0.72);
   }
 }
+
+:root {
+  --font: "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r-sm: 0.75rem;
+  --r-md: 1rem;
+  --r-lg: 1.25rem;
+  --r-xl: 1.75rem;
+  --fs-small: 0.9375rem;
+  --fs-body: 1.0625rem;
+  --fs-lead: 1.25rem;
+  --fs-h3: 1.25rem;
+  --fs-h2: clamp(1.625rem, 1.3rem + 1.2vw, 2.25rem);
+  --fs-h1: clamp(2.125rem, 1.4rem + 3vw, 3.25rem);
+  --fs-display: clamp(2.75rem, 1.6rem + 5vw, 5.25rem);
+  --shell: 64rem;
+  --column: 46rem;
+  --gutter: 1.25rem;
+}
+
+/* ---------------- base ---------------- */
 
 * { box-sizing: border-box; }
 
 /* `hidden` is only a browser-stylesheet rule, so any `display` written below
    would beat it and elements hidden from JavaScript would stay on screen. */
-[hidden] { display: none !important; }
+[hidden] { display: none !important; } /* stylecheck: allow */
 
-html { height: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  color-scheme: light dark;
+}
 
 body {
   margin: 0;
-  min-height: 100%;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
   color: var(--text);
-  background: var(--content);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3 { font-family: var(--font-display); }
-p { margin: 0 0 10px; }
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 700;
+  font-stretch: 108%;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+p { margin: 0 0 0.75rem; text-wrap: pretty; }
 p:last-child { margin-bottom: 0; }
-.tabular, code, .mono { font-variant-numeric: tabular-nums; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
 
 a {
   color: var(--accent);
-  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 3px;
 }
-a:hover { text-decoration-color: currentColor; }
-a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+@media (hover: hover) {
+  a:hover { text-decoration-color: currentColor; }
+}
 
-/* Off screen, still read aloud. Table captions, a few labels, and the two file
-   inputs the buttons press for the person. */
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+/* one focus ring, the same everywhere. */
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.screen:focus { outline: none; }
+
+.tabular { font-variant-numeric: tabular-nums; }
+.fine { font-size: var(--fs-small); color: var(--text-muted); }
+
 .visually-hidden {
-  position: absolute;
+  position: absolute !important; /* stylecheck: allow */
   width: 1px;
   height: 1px;
   margin: -1px;
   padding: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
-  clip-path: inset(50%);
   white-space: nowrap;
+  border: 0;
 }
 
-/* Fixed, non-interactive and cheap: one small turbulence tile scaled up. */
-.grain {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-@media (prefers-color-scheme: light) { .grain { opacity: 0.022; } }
-
-/* ═══ title bar ═══ */
-/* No sidebar. There is one file open and four screens in sequence, so a rail
-   with three destinations would be furniture around an empty room. */
-.top {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 46px;
-  padding: 0 14px;
-  background: color-mix(in srgb, var(--shell) 86%, transparent);
-  backdrop-filter: blur(18px) saturate(1.4);
-  border-bottom: 1px solid var(--line);
+/* the line icons share one stroke, the way Lucide draws them. */
+.pill-icon, .theme svg, .trust svg, .dropzone-mark svg, .veil-icon, .alert-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.mark { width: 20px; height: 20px; color: var(--accent); display: block; flex: none; }
-.mark svg { width: 100%; height: 100%; display: block; }
-.wordmark {
-  font-family: var(--font-display);
-  font-size: 12.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.top-file {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.top-file:not([hidden]) + .btn { margin-left: auto; }
+/* ---------------- buttons ---------------- */
 
-/* ═══ the column ═══ */
-.stage {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  max-width: var(--column);
-  margin: 0 auto;
-  padding: 30px 22px 60px;
-}
-/* Each screen takes focus when it arrives, so it needs no ring of its own:
-   the ring belongs to whatever the person tabs to next. */
-.screen { animation: settle var(--normal) var(--ease-out); }
-.screen:focus { outline: none; }
-
-@keyframes settle {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: none; }
-}
-
-/* ═══ cards ═══ */
-.card {
-  padding: 20px 22px;
-  margin-bottom: 14px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-top-color: var(--edge);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-1);
-}
-.card:last-child { margin-bottom: 0; }
-.quiet-card { background: none; box-shadow: none; }
-.quiet-card:empty { display: none; }
-
-.kicker {
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 5px;
-}
-/* The accent means "recovered" everywhere else, so a result the verifier is
-   unhappy about does not get to wear it. */
-.kicker.is-bad { color: var(--danger); }
-.verdict {
-  margin: 0 0 8px;
-  font-size: 23px;
-  font-weight: 780;
-  letter-spacing: -0.032em;
-  line-height: 1.2;
-}
-.sub-title {
-  margin: 0 0 6px;
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 720;
-  letter-spacing: -0.022em;
-}
-.sub {
-  margin: 0 0 10px;
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-.detail { color: var(--text-2); max-width: 62ch; }
-.lede { color: var(--text-2); font-size: 13.5px; max-width: 56ch; margin: 0 auto 18px; }
-.fine { font-size: 11.5px; color: var(--text-3); margin: 0; }
-.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-
-/* ═══ buttons ═══ */
-/* `main` rather than the usual word for the leading action: this project's
-   style checker rejects that word, and a class name is not worth arguing
-   with a rule that keeps the prose clean. */
 .btn {
-  appearance: none;
-  -webkit-appearance: none;
-  display: inline-block;
-  padding: 9px 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  border: 0;
+  border-radius: 999px;
   font: inherit;
-  font-size: 12.5px;
-  font-weight: 560;
+  font-weight: 600;
+  line-height: 1.2;
   text-align: center;
   text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.btn.main { background: var(--accent); color: var(--accent-ink); }
+.btn.quiet {
+  background: color-mix(in srgb, var(--text) 7%, var(--surface-raised));
   color: var(--text);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  cursor: pointer;
+}
+.btn.small { min-height: 2.75rem; padding: 0 1rem; font-size: var(--fs-small); }
+.btn.big { min-height: 3.5rem; padding: 0 2rem; font-size: 1.125rem; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+@media (hover: hover) {
+  .btn.main:not(:disabled):hover { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
+  .btn.quiet:not(:disabled):hover { background: color-mix(in srgb, var(--text) 13%, var(--surface-raised)); }
+}
+
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+
+/* ---------------- the bar at the top ---------------- */
+
+.top {
+  width: 100%;
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 0.75rem max(var(--gutter), env(safe-area-inset-left)) 0.75rem max(var(--gutter), env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  font-stretch: 108%;
+  font-size: 1.1875rem;
+  letter-spacing: -0.02em;
+}
+.mark { width: 1.75rem; height: 1.75rem; color: var(--accent); }
+
+.top-file {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  transition: transform var(--fast) var(--ease), background var(--fast) var(--ease),
-              filter var(--fast) var(--ease), opacity var(--fast) var(--ease);
+  color: var(--text-muted);
+  font-size: var(--fs-small);
 }
-.btn:active { transform: scale(0.975); }
-/* Two pixels of offset so the ring never sits on the button's own edge. It
-   has to survive on the card, on the sunken fill and on the accent itself. */
-.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn[disabled] { opacity: 0.45; cursor: progress; }
-
-.btn.main {
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 640;
-  /* Ombra neutra e non un alone del colore d'accento: l'alone cromatico
-     e' il modo di fare piu' riconoscibile delle interfacce generate. */
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 8px rgba(0, 0, 0, 0.34);
+.pill {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-height: 2.75rem;
+  padding: 0 0.25rem 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
 }
-.btn.main:hover { filter: brightness(1.07); color: var(--accent-ink); }
-.btn.main:focus-visible { outline-color: var(--text); }
-/* One step lighter than the card behind them, or they read as an outline. */
-.btn.quiet { background: var(--card-hi); border-color: var(--line-2); }
-.btn.quiet:hover { background: color-mix(in srgb, var(--card-hi) 84%, var(--text)); }
-.btn.ghost { color: var(--text-3); }
-.btn.ghost:hover { background: var(--card-hi); color: var(--text); }
-.btn.tiny { padding: 4px 9px; font-size: 11.5px; border-radius: var(--r-xs); }
-.btn.big { padding: 11px 22px; font-size: 13.5px; }
-a.btn { text-decoration: none; }
-
-/* ═══ the alert region ═══ */
-/* One place for every failure, at the top of the column, styled loudly.
-   Toasts were wrong here: an error in this app is a state a person has to
-   act on, and a state that fades after five seconds reads as a glitch. */
-.alert {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-  background: var(--card);
-  border: 1px solid var(--danger);
-  border-radius: var(--r-md);
-  animation: settle var(--normal) var(--ease-out);
+.pill-icon { width: 1.125rem; height: 1.125rem; color: var(--text-muted); margin-right: 0.25rem; }
+.langs { display: inline-flex; }
+.langs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  text-decoration: none;
 }
-.alert-icon { width: 15px; height: 15px; flex: none; margin-top: 2px; color: var(--danger); }
-.alert p { margin: 0; color: var(--text-2); max-width: 60ch; }
-
-/* The browser that cannot run any of this, and the page with scripts off.
-   Both replace the app rather than sitting above it, because there is no app
-   underneath them to go back to. */
-.too-old .detail, noscript .detail { margin-bottom: 10px; }
-
-/* ═══ 1. empty state ═══ */
-.dropzone {
-  position: relative;
-  padding: 46px 30px 40px;
-  margin-bottom: 14px;
-  text-align: center;
-  background: var(--card);
-  border: 1px dashed var(--line-2);
-  border-radius: var(--r-xl);
+.langs a[aria-current] { color: var(--accent); background: var(--accent-soft); }
+@media (hover: hover) {
+  .langs a:not([aria-current]):hover { color: var(--text); }
+}
+.pill-rule { width: 1px; height: 1.25rem; background: var(--border); margin: 0 0.25rem; }
+.theme {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
   cursor: pointer;
-  transition: border-color var(--normal) var(--ease), background var(--normal) var(--ease);
 }
-.dropzone:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
-.dropzone-mark { width: 62px; height: 62px; margin: 0 auto 16px; color: var(--accent); }
-.dropzone-mark svg { width: 100%; height: 100%; display: block; }
-.dropzone-title {
-  margin: 0 0 10px;
-  font-size: 25px;
-  font-weight: 800;
-  letter-spacing: -0.036em;
-  line-height: 1.15;
+.theme svg { width: 1.125rem; height: 1.125rem; }
+:root[data-theme="dark"] .theme .moon,
+:root:not([data-theme="dark"]) .theme .sun { display: none; }
+@media (hover: hover) {
+  .theme:hover { color: var(--text); }
 }
-.dropzone-cta { margin: 0 0 12px; }
 
-/* The block that says the file stays here. On the desktop this went without
-   saying, since the app was a program on the person's own machine. On a page
-   it is the first question anyone has, so it gets the accent, an icon and a
-   position directly under the drop target. */
-.privacy {
+/* ---------------- the page ---------------- */
+
+.stage {
+  flex: 1;
+  width: 100%;
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 1rem max(var(--gutter), env(safe-area-inset-left)) 4rem max(var(--gutter), env(safe-area-inset-right));
+}
+
+/* the working screens read as one column; the first screen uses the width. */
+.screen:not(.open), .alert, .too-old, .stage > noscript > .card {
+  max-width: var(--column);
+  margin-left: auto;
+  margin-right: auto;
+}
+.screen:not(.open) > * + * { margin-top: 1rem; }
+
+.suggest {
   display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 16px 18px;
-  margin-bottom: 14px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  width: fit-content;
+  align-items: center;
+  min-height: 2.75rem;
+  margin: 0 0 1rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  text-decoration: none;
 }
-.privacy-icon { width: 26px; height: 26px; flex: none; color: var(--accent); margin-top: 1px; }
-.privacy-icon svg { width: 100%; height: 100%; display: block; }
-.privacy-body { min-width: 0; }
-.privacy-title {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 740;
-  letter-spacing: -0.022em;
-}
-.privacy p { color: var(--text-2); max-width: 60ch; }
-.privacy .fine { margin-top: 8px; }
 
-/* The reference note, sitting under the drop target rather than inside it.
-   It is the one idea in this app nobody arrives already knowing, so it is on
-   screen one and written out in full instead of hiding behind a label. */
-.note {
-  padding: 16px 18px;
-  background: var(--sunken);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-}
-.note-title {
-  margin: 0 0 6px;
-  font-size: 13.5px;
-  font-weight: 700;
-  letter-spacing: -0.016em;
-}
-.note p { color: var(--text-2); max-width: 64ch; }
+/* ---------------- screen 1 ---------------- */
 
-/* What the tool is, at the foot of the first screen. Quieter than everything
-   above it: someone in a hurry with a broken file never has to read this, and
-   someone deciding whether to trust the page reads all of it. */
-.about {
-  margin-top: 30px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line);
+.hero { padding: 1.5rem 0 2rem; }
+.display {
+  font-size: var(--fs-display);
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  max-width: 12ch;
 }
-.about p { color: var(--text-2); max-width: 66ch; }
-.about-sub {
-  margin: 18px 0 8px;
-  font-size: 13.5px;
+.lead {
+  margin-top: 1.25rem;
+  max-width: 38ch;
+  font-size: var(--fs-lead);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.dropzone {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.5rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r-xl);
+  background: var(--surface-raised);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) {
+  .dropzone:hover { border-color: var(--accent); }
+}
+.dropzone-mark {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.dropzone-mark svg { width: 1.75rem; height: 1.75rem; }
+.dropzone-title { font-size: var(--fs-h3); }
+.dropzone-cta { margin: 0.25rem 0 0; }
+.dropzone .fine { max-width: 34ch; }
+
+.diagram { margin: 2.5rem 0 0; }
+.dia-bar { display: flex; gap: 0.375rem; height: 2.75rem; }
+.dia-media {
+  flex: 1;
+  border-radius: var(--r-sm);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 10px, color-mix(in srgb, var(--surface) 35%, transparent) 10px 12px),
+    var(--accent);
+}
+.dia-index {
+  width: 16%;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+}
+.dia-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-top: 0.75rem;
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+}
+.dia-legend span { display: inline-flex; align-items: center; gap: 0.5rem; }
+.dia-swatch { display: inline-block; width: 0.875rem; height: 0.875rem; border-radius: 4px; }
+.dia-swatch.is-media { background: var(--accent); }
+.dia-swatch.is-index { border: 1.5px dashed var(--border-strong); }
+
+.trust {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+.trust svg { width: 1.75rem; height: 1.75rem; color: var(--accent); }
+.trust h3 { margin: 0.625rem 0 0.25rem; font-size: var(--fs-body); }
+.trust p { color: var(--text-muted); }
+
+.section-title { font-size: var(--fs-h2); letter-spacing: -0.025em; margin-bottom: 1.25rem; }
+
+.steps { margin-top: 4rem; }
+.steps ol { display: grid; gap: 1rem; }
+.steps li {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+}
+.step-n {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 700;
-  letter-spacing: -0.016em;
 }
-.cannot { margin: 0 0 14px; padding: 0; list-style: none; display: grid; gap: 8px; }
+.steps h3 { margin: 0.875rem 0 0.375rem; font-size: var(--fs-h3); }
+.steps p { color: var(--text-muted); }
+
+.pair { display: grid; gap: 1rem; margin-top: 1rem; }
+.panel-title { font-size: var(--fs-h3); margin-bottom: 0.625rem; }
+.panel p { color: var(--text-muted); }
+.panel .fine { margin-top: 0.75rem; }
+
+.cannot-wrap { margin-top: 4rem; }
+.cannot { display: grid; gap: 0.75rem; margin-bottom: 1.25rem; }
 .cannot li {
   position: relative;
-  padding-left: 18px;
-  color: var(--text-2);
-  max-width: 64ch;
+  padding-left: 1.5rem;
+  color: var(--text-muted);
+  max-width: 66ch;
 }
 .cannot li::before {
   content: "";
   position: absolute;
-  left: 2px;
-  top: 8px;
-  width: 7px;
+  left: 0.125rem;
+  top: 0.8em;
+  width: 0.625rem;
   height: 1.5px;
-  background: var(--text-3);
+  background: var(--border-strong);
 }
 
-/* ═══ 2. diagnosis ═══ */
+@media (min-width: 48rem) {
+  .hero { padding: 3rem 0 2.5rem; }
+  .dropzone { padding: 3.5rem 2rem; }
+  .trust, .steps ol { grid-template-columns: repeat(3, 1fr); }
+  .pair { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------------- cards and the working screens ---------------- */
+
+.card {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
+}
+.quiet-card { background: var(--surface); box-shadow: none; }
+@media (min-width: 48rem) {
+  .card { padding: 2rem; }
+}
+
+.kicker {
+  margin-bottom: 0.375rem;
+  color: var(--text-muted);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+.kicker.is-bad { color: var(--text); }
+.verdict, .filename { font-size: var(--fs-h1); letter-spacing: -0.03em; }
+.filename { font-size: var(--fs-h2); overflow-wrap: anywhere; }
+.detail { margin-top: 0.75rem; color: var(--text-muted); }
+.sub { font-size: var(--fs-body); margin-bottom: 0.75rem; }
+.sub-title { font-size: var(--fs-h3); margin-bottom: 0.625rem; }
+
+.alert {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  font-weight: 600;
+}
+.alert-icon { flex: none; width: 1.375rem; height: 1.375rem; margin-top: 0.125rem; color: var(--accent); }
+
 .facts {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 5px 16px;
-  margin: 16px 0 22px;
-  padding: 13px 15px;
-  background: var(--sunken);
-  border-radius: var(--r-md);
-  font-size: 12.5px;
+  grid-template-columns: max-content 1fr;
+  gap: 0.375rem 1.25rem;
+  margin: 1.5rem 0 0;
 }
-.facts dt { color: var(--text-3); }
-.facts dd {
-  margin: 0;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
+.facts dt { color: var(--text-muted); }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
-/* The structure bar. Strictly proportional: every segment is placed at its
-   real offset and drawn at its real width, so the eye can trust it. A missing
-   index has no width to draw, so it is stated in the legend instead of being
-   given an invented block on the bar. */
+.struct { margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
 .struct-bar {
   position: relative;
-  height: 34px;
-  margin-bottom: 10px;
-  background: var(--sunken);
-  border-radius: var(--r-sm);
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
   overflow: hidden;
 }
-.seg {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  min-width: 2px;
-  background: var(--text-3);
-  border-right: 1px solid var(--card);
+.seg { position: absolute; top: 0; bottom: 0; }
+.seg.is-media, .swatch.is-media { background: var(--accent); }
+.seg.is-index, .swatch.is-index { background: var(--text-muted); }
+.seg.is-other, .swatch.is-other { background: var(--border-strong); }
+.struct-read { margin-top: 0.875rem; }
+.legend { display: grid; gap: 0.375rem; margin: 0.75rem 0 1rem; font-size: var(--fs-small); color: var(--text-muted); }
+.legend b { color: var(--text); margin-right: 0.25rem; }
+.swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-right: 0.5rem;
+  border-radius: 3px;
+  vertical-align: -1px;
 }
-.seg.is-media {
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--accent) 88%, white),
-    var(--accent));
-}
-.seg.is-index { background: var(--steel); }
-.seg.is-other { background: color-mix(in srgb, var(--text-3) 55%, transparent); }
+.swatch.is-gone { border: 1.5px dashed var(--text-muted); }
 
-.struct-read {
-  font-size: 13px;
-  color: var(--text-2);
-  margin-bottom: 12px;
-  max-width: 62ch;
-}
-.struct-read b { color: var(--text); font-weight: 620; }
-
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 14px; padding: 0; list-style: none; }
-.legend li { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-3); }
-.legend b { color: var(--text-2); font-weight: 560; }
-.swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; background: var(--text-3); }
-.swatch.is-media { background: var(--accent); }
-.swatch.is-index { background: var(--steel); }
-.swatch.is-other { background: color-mix(in srgb, var(--text-3) 55%, transparent); }
-.swatch.is-gone { background: none; border: 1px dashed var(--text-3); }
-
-.boxes { width: 100%; border-collapse: collapse; font-size: 12px; }
-.boxes th {
-  text-align: left;
-  font-weight: 560;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  padding: 0 10px 6px 0;
-  border-bottom: 1px solid var(--line);
-}
-.boxes td {
-  padding: 6px 10px 6px 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--text-2);
+.table-scroll { overflow-x: auto; }
+.boxes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
   font-variant-numeric: tabular-nums;
 }
-.boxes tr:last-child td { border-bottom: none; }
-.boxes td:first-child { color: var(--text); font-family: var(--font-mono); font-size: 11.5px; }
-.boxes th:not(:first-child), .boxes td:not(:first-child) { text-align: right; width: 1%; white-space: nowrap; }
-.boxes tr.is-media td:first-child { color: var(--accent); font-weight: 600; }
+.boxes th { text-align: left; font-weight: 600; color: var(--text-muted); padding: 0.375rem 0.75rem 0.375rem 0; }
+.boxes td { padding: 0.5rem 0.75rem 0.5rem 0; border-top: 1px solid var(--border); white-space: nowrap; }
+.boxes tr.is-media td:first-child { font-weight: 700; color: var(--accent); }
 
-/* The reference card. When the repair cannot start without one this is the
-   loudest thing on the screen after the verdict, because a person who does
-   not understand this step cannot get past it by trying harder. It also takes
-   a dropped file of its own, so the second video arrives the same way as the
-   first one did. */
-.ref { border-left: 2px solid var(--line-2); }
-.ref.is-needed {
-  border-left-color: var(--accent);
-  background: linear-gradient(90deg, var(--accent-dim), var(--accent-fade) 40%), var(--card);
-}
-.ref.is-over {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
-.ref p { color: var(--text-2); max-width: 62ch; }
-.ref .row { margin-top: 14px; }
-
-.ticks { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 7px; }
-.ticks li {
-  position: relative;
-  padding-left: 20px;
-  font-size: 12.5px;
-  color: var(--text-2);
-  max-width: 60ch;
-}
+.ref.is-needed { border-color: var(--accent); }
+.ref.is-over { background: var(--accent-soft); }
+.ref > p { color: var(--text-muted); }
+.ticks { display: grid; gap: 0.5rem; margin: 1rem 0 1.25rem; }
+.ticks li { position: relative; padding-left: 1.75rem; color: var(--text-muted); }
+.ticks li b { color: var(--text); }
 .ticks li::before {
   content: "";
   position: absolute;
-  left: 2px;
-  top: 6px;
-  width: 8px;
-  height: 5px;
-  border-left: 1.6px solid var(--accent);
-  border-bottom: 1.6px solid var(--accent);
-  transform: rotate(-45deg);
+  left: 0.25rem;
+  top: 0.45em;
+  width: 0.375rem;
+  height: 0.75rem;
+  border: solid var(--accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
-.ticks b { color: var(--text); font-weight: 600; }
+.chosen { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.chosen-name { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 
-.chosen {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 5px 4px 10px;
-  background: var(--sunken);
-  border-radius: var(--r-sm);
-  max-width: 100%;
-  min-width: 0;
-}
-.chosen-name {
-  font-size: 12px;
-  color: var(--text-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.actions { padding-top: 0.5rem; }
+.actions .fine { margin-top: 0.75rem; }
+#repair-hint.is-warning { color: var(--text); font-weight: 600; }
 
-.actions { padding: 4px 2px 0; }
-.actions .fine { margin-top: 10px; max-width: 62ch; }
-.actions .fine.is-warning { color: var(--warn); }
-
-/* ═══ 3. repairing ═══ */
-/* This screen is on display for minutes at a time, so it carries the only
-   moving parts in the app: a sweep across the card, a bar that advances, and
-   an elapsed clock. The clock matters most. A bar that has not moved for
-   forty seconds during a long scan looks broken, and a clock that is still
-   counting says the work is running. */
-.work { position: relative; overflow: hidden; }
-.work::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(105deg, var(--accent-fade) 36%, var(--accent-dim) 50%, var(--accent-fade) 64%);
-  background-size: 260% 100%;
-  animation: sweep 3.6s linear infinite;
-}
-@keyframes sweep { to { background-position: -260% 0; } }
-
-.filename {
-  margin: 0 0 16px;
-  font-size: 17px;
-  font-weight: 720;
-  letter-spacing: -0.024em;
-  overflow-wrap: anywhere;
-}
-.figures { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.pct {
-  font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 660;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-.elapsed { font-size: 12px; color: var(--text-3); }
-
-.bar {
-  height: 5px;
-  margin: 12px 0 20px;
-  border-radius: 999px;
-  background: var(--sunken);
-  overflow: hidden;
-}
-.bar > i {
+.figures { display: flex; justify-content: space-between; align-items: baseline; margin-top: 1.5rem; }
+.pct { font-size: 3rem; font-weight: 700; font-stretch: 108%; letter-spacing: -0.03em; line-height: 1; }
+.elapsed { color: var(--text-muted); font-size: var(--fs-small); }
+.bar, .stage-bar {
   display: block;
-  height: 100%;
+  height: 0.5rem;
+  margin-top: 0.875rem;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.bar > i, .stage-bar > i {
+  display: block;
   width: 0;
+  height: 100%;
   border-radius: 999px;
   background: var(--accent);
-  /* impeccable-disable-next-line layout-transition -- il valore lo scrive il JS in percentuale, e su una barra da 5px non vale la conversione a transform */
-  transition: width var(--slow) var(--ease);
+  transition: width 0.2s linear;
 }
-
-.stages { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 2px; }
+.stages { display: grid; gap: 0.25rem; margin: 1.5rem 0 1rem; }
 .stages li {
   display: grid;
-  grid-template-columns: 18px 1fr 84px;
+  grid-template-columns: 1.25rem 1fr 4.5rem;
   align-items: center;
-  gap: 10px;
-  padding: 7px 9px;
-  border-radius: var(--r-sm);
-  font-size: 12.5px;
-  color: var(--text-3);
-  transition: background var(--normal) var(--ease), color var(--normal) var(--ease);
+  gap: 0.75rem;
+  min-height: 2.25rem;
+  color: var(--text-muted);
 }
-.stages li.is-done { color: var(--text-2); }
-.stages li.is-active { background: var(--accent-dim); color: var(--text); font-weight: 560; }
-
-/* An empty ring while waiting, a filled ring with a tick once passed, and a
-   pulsing dot on the stage running now. Three states, no icon font. */
+.stage-bar { height: 0.25rem; margin: 0; visibility: hidden; }
+.stages li.is-active { color: var(--text); font-weight: 600; }
+.stages li.is-active .stage-bar { visibility: visible; }
 .tick {
   position: relative;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1.4px solid var(--line-2);
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 999px;
 }
-.stages li.is-done .tick { background: var(--accent); border-color: var(--accent); }
+.stages li.is-active .tick { border-color: var(--accent); }
+.stages li.is-done .tick { border-color: var(--accent); background: var(--accent); }
 .stages li.is-done .tick::after {
   content: "";
   position: absolute;
-  left: 3.4px;
-  top: 3px;
-  width: 6px;
-  height: 3px;
-  border-left: 1.5px solid var(--accent-ink);
-  border-bottom: 1.5px solid var(--accent-ink);
-  transform: rotate(-45deg);
+  left: 0.3rem;
+  top: 0.12rem;
+  width: 0.25rem;
+  height: 0.5rem;
+  border: solid var(--accent-ink);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
 }
-.stages li.is-active .tick { border-color: var(--accent); }
-.stages li.is-active .tick::after {
-  content: "";
-  position: absolute;
-  inset: 2.6px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: pulse 1.5s var(--ease) infinite;
-}
-@keyframes pulse { 50% { opacity: 0.25; transform: scale(0.7); } }
+.note-line { font-weight: 600; min-height: 1.6em; }
 
-.stage-bar { height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; opacity: 0; }
-.stages li.is-active .stage-bar { opacity: 1; }
-.stage-bar > i {
-  display: block;
-  height: 100%;
-  width: 0;
-  border-radius: 999px;
-  background: var(--accent);
-  /* impeccable-disable-next-line layout-transition -- come sopra, barra da 3px */
-  transition: width var(--normal) var(--ease);
-}
-
-.note-line {
-  min-height: 19px;            /* holds its line so the card does not twitch on every report */
-  font-size: 12.5px;
-  color: var(--text-2);
-  margin-bottom: 12px;
-}
-
-/* ═══ 4. result ═══ */
 .stats {
-  list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 1px;
-  margin: 18px 0;
-  padding: 0;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  overflow: hidden;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
 }
-.stats li { padding: 11px 13px; background: var(--card); }
-.stats .stat-value {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.028em;
-  font-variant-numeric: tabular-nums;
+.stats li { display: grid; }
+.stat-value { font-size: 1.5rem; font-weight: 700; font-stretch: 108%; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.stat-name { color: var(--text-muted); font-size: var(--fs-small); }
+@media (min-width: 40rem) {
+  .stats { grid-template-columns: repeat(4, 1fr); }
 }
-.stats .stat-name { display: block; font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.get { margin: 0.5rem 0 1rem; }
+.get-name { margin-top: 0.75rem; overflow-wrap: anywhere; }
+#rs-safe { margin-bottom: 1.25rem; }
 
-/* The repaired file lives in this tab and nowhere else until it is saved, so
-   the link that saves it is the loudest thing on the screen. */
-.get {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 14px 15px;
-  margin: 0 0 10px;
-  background: var(--sunken);
-  border-radius: var(--r-md);
-}
-.get-name {
-  margin: 0;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--text-2);
-  overflow-wrap: anywhere;
-}
-#rs-safe { max-width: 62ch; margin-bottom: 16px; }
+.ask { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+.ask > p { font-weight: 600; margin-bottom: 0.75rem; }
+p.ask { color: var(--text-muted); font-weight: 400; }
 
-/* Findings from the verifier. Errors get the red edge and stay at the top of
-   the stack. Warnings get the amber edge and a lighter voice, because most of
-   them are things a player will never notice. */
 .finding {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 11px 14px;
-  margin-bottom: 8px;
-  background: var(--card);
-  border: 1px solid var(--warn);
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
   border-radius: var(--r-md);
-  font-size: 12.5px;
-  color: var(--text-2);
+  background: var(--surface-raised);
 }
-.finding.is-error { border-left-color: var(--danger); }
-.finding-tag {
-  flex: none;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--warn);
-  padding-top: 1px;
-}
-.finding.is-error .finding-tag { color: var(--danger); }
+.finding + .finding { margin-top: 0.5rem; }
+.finding.is-error { border-color: var(--border-strong); font-weight: 600; }
+.finding-tag { flex: none; font-weight: 700; }
 
-.loss-line { color: var(--text-2); max-width: 62ch; }
-.loss-line b { color: var(--text); font-weight: 620; }
-.damage {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: grid;
-  gap: 1px;
-  font-size: 12px;
-}
-.damage li {
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-  padding: 7px 11px;
-  background: var(--sunken);
-  border-radius: var(--r-xs);
-  font-variant-numeric: tabular-nums;
-}
-.damage .at { color: var(--text); font-weight: 560; flex: none; }
-.damage .len { color: var(--warn); flex: none; }
-.damage .what { color: var(--text-3); }
+.loss-line { color: var(--text-muted); }
+.loss-line b { color: var(--text); }
+.damage { display: grid; gap: 0.25rem; margin: 1rem 0 0.5rem; font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.damage li { display: grid; grid-template-columns: 7rem 5rem 1fr; gap: 0.75rem; }
+.damage .what { color: var(--text-muted); }
 
-.how { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 0; font-size: 12.5px; }
-.how dt { color: var(--text-3); }
-.how dd { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
-.how dd b { color: var(--text); font-weight: 560; }
-.how dd em { font-style: normal; color: var(--text-3); }
+.how { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.25rem; margin: 0; }
+.how dt { font-weight: 600; }
+.how dd { margin: 0; color: var(--text-muted); }
 
-/* ═══ drag veil ═══ */
+/* ---------------- dragging a file over the window ---------------- */
+
 .veil {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 10;
   display: grid;
   place-items: center;
-  padding: 30px;
-  background: color-mix(in srgb, var(--shell) 74%, transparent);
-  backdrop-filter: blur(16px);
-  animation: fade var(--fast) var(--ease);
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
-@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .veil-card {
-  padding: 34px 44px;
-  text-align: center;
-  border: 2px dashed var(--accent);
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 3rem;
+  border: 1.5px dashed var(--accent);
   border-radius: var(--r-xl);
-  background: var(--card);
-  box-shadow: var(--shadow-3);
+  background: var(--surface-raised);
+  font-weight: 600;
 }
-.veil-icon { width: 46px; height: 46px; color: var(--accent); margin-bottom: 12px; }
-.veil-card p { margin: 0; font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+.veil-icon { width: 2.5rem; height: 2.5rem; color: var(--accent); }
 
-/* ═══ narrow windows ═══ */
-/* A phone can open this page, and a phone can hold a broken recording. Nothing
-   here needs to reflow into a different layout, it just needs to stop being
-   cramped. */
-@media (max-width: 520px) {
-  .stage { padding: 20px 14px 44px; }
-  .card { padding: 16px 15px; border-radius: var(--r-md); }
-  .dropzone { padding: 34px 18px 30px; }
-  .dropzone-title { font-size: 21px; }
-  .verdict { font-size: 20px; }
-  .pct { font-size: 28px; }
-  .privacy { padding: 14px 15px; gap: 11px; }
-  .privacy-icon { width: 22px; height: 22px; }
-  .facts { grid-template-columns: 1fr; gap: 2px 0; }
-  .facts dt { margin-top: 6px; }
-  /* Two by two, stated rather than left to auto-fit. Four figures wrapping
-     three and one leaves a cell of bare grid line showing, which reads as a
-     hole in the table. */
-  .stats { grid-template-columns: 1fr 1fr; }
-  .stages li { grid-template-columns: 18px 1fr; }
-  .stage-bar { display: none; }
-  .how { grid-template-columns: 1fr; gap: 2px 0; }
-  .how dt { margin-top: 8px; }
-  .get { flex-direction: column; align-items: stretch; }
-  .get .btn { width: 100%; }
-  .boxes th:nth-child(2), .boxes td:nth-child(2) { display: none; }
-}
+/* ---------------- the foot, and the two legal pages ---------------- */
 
-/* ═══ scrollbar ═══ */
-::-webkit-scrollbar { width: 11px; }
-::-webkit-scrollbar-thumb {
-  background: var(--line-2);
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-clip: content-box;
+.foot {
+  width: 100%;
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 1.5rem var(--gutter) 2.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-small);
 }
-::-webkit-scrollbar-thumb:hover { background: var(--text-3); background-clip: content-box; }
+.foot p { margin: 0 0 0.25rem; }
 
-/* Someone who has asked the system to stop animating things has asked for it
-   here too, and this page is the sort that leaves a window moving for minutes.
-   The sweep and the pulse go, the bars still move because their width is the
-   information, not the decoration. */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;   /* stylecheck: allow */
-    transition-duration: 0.01ms !important;
-  }
-  .work::after { display: none; }
-}
+.legal { width: 100%; max-width: var(--column); margin: 0 auto; padding: 2rem var(--gutter) 4rem; }
+.legal h1 { font-size: var(--fs-h1); letter-spacing: -0.03em; margin: 1rem 0 0.25rem; }
+.legal h2 { font-size: var(--fs-h3); margin: 2rem 0 0.5rem; }
+.legal p, .legal li { color: var(--text-muted); max-width: 66ch; }
+.legal ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 0.75rem; }
+.legal li + li { margin-top: 0.375rem; }
