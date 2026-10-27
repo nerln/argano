@@ -699,3 +699,24 @@ p.ask { color: var(--text-muted); font-weight: 400; }
 .legal p, .legal li { color: var(--text-muted); max-width: 66ch; }
 .legal ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 0.75rem; }
 .legal li + li { margin-top: 0.375rem; }
+
+/* the promise that matters most, said under the title before anything is asked. */
+.hero-privacy {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+  max-width: 44ch;
+  margin-top: 1.25rem;
+  font-weight: 600;
+}
+.hero-privacy svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15rem;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

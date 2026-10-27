@@ -130,6 +130,10 @@
     <div class="hero">
       <h1 class="display" id="open-title">Your video is still in there.</h1>
       <p class="lead">A recording cut short by a dead battery, a full card or a crash keeps every frame. What it lost is the index that tells a player where each one starts. argano writes that index back, here in your browser.</p>
+      <p class="hero-privacy">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span>Your video never leaves your computer. The repair runs inside this page, and you can check it in your browser's network panel.</span>
+      </p>
     </div>
 
     <div class="dropzone" id="dropzone">
@@ -180,7 +184,7 @@
       <h2 class="section-title" id="steps-title">How a repair goes</h2>
       <ol>
         <li><span class="step-n" aria-hidden="true">1</span><h3>Drop the file</h3><p>argano looks inside it and tells you what is wrong before it does anything.</p></li>
-        <li><span class="step-n" aria-hidden="true">2</span><h3>Add a clip, if asked</h3><p>Most files need three seconds of video from the same camera or app, recorded at the same setting. It is only read.</p></li>
+        <li><span class="step-n" aria-hidden="true">2</span><h3>Add a clip, if asked</h3><p>Most files need a few seconds of another video shot with the same phone or camera, at the same setting. It is only read.</p></li>
         <li><span class="step-n" aria-hidden="true">3</span><h3>Save the copy that plays</h3><p>Your original stays exactly as it was. The repaired copy is a new file.</p></li>
       </ol>
     </section>
@@ -193,7 +197,7 @@
       <section class="card panel" aria-labelledby="priv-title">
         <h2 class="panel-title" id="priv-title">Nothing leaves your computer</h2>
         <p>Your browser reads the file from your disk and hands the bytes to the code on this page. No server sees them and there is no account. Open the network panel while a file repairs and you will see no request go out.</p>
-        <p class="fine">The page sends one anonymous count when it opens, and one more only if you answer the question at the end. Neither carries anything from the video. <a href="privacy.html">Privacy policy</a></p>
+        <p class="fine">Without anything from the video, the page counts that it was opened, that a file was opened, whether it needed a second video and whether the repair finished. If you answer the question at the end, that is counted too. <a href="privacy.html">Privacy policy</a></p>
       </section>
     </div>
 

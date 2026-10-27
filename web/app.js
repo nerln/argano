@@ -35,13 +35,26 @@ const W = words(LANG);
 const LOCALE = LOCALES[LANG];
 const say = (text, fallback = text) => fromLib(LANG, text) ?? fallback;
 
-/* The page counts two things and nothing else: that it was opened, and the
-   answer to "did this save your video" when someone gives one. Each is a
-   single request to GoatCounter carrying the page address, the site that sent
-   the visit and the campaign in the link. No cookie, no identifier, and never
-   a byte of the video. A copy opened from disk, on localhost or in a fork
-   served from anywhere else counts nothing. */
+/* What the page counts, and nothing else: that it was opened, and then the
+   steps of a repair (a file opened, a second video needed, the repair finished
+   or stopped) and the answer to "did this save your video". Each is a single
+   request to GoatCounter. No cookie, no identifier, and never a byte or a name
+   from the video. A copy opened from disk, on localhost or in a fork served
+   from anywhere else counts nothing.
+
+   A step is filed under where the visit came from, the `ref` in the link or
+   else the site that sent it, so the totals say how many repairs a channel
+   brought and not only how many visits. */
 const COUNTER = 'https://nerln.goatcounter.com/count';
+
+const SOURCE = (() => {
+  const tag = new URLSearchParams(location.search).get('ref') || '';
+  if (tag) return tag.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'other';
+  try {
+    const host = new URL(document.referrer).hostname.replace(/^www\./, '');
+    return host && host !== location.hostname ? host : 'direct';
+  } catch { return 'direct'; }
+})();
 
 function tally(path, title, event = false) {
   if (location.origin !== 'https://nerln.github.io') return;
@@ -54,6 +67,8 @@ function tally(path, title, event = false) {
   fetch(`${COUNTER}?${q}`, { mode: 'no-cors', credentials: 'omit', keepalive: true })
     .catch(() => {});
 }
+
+const step = (name, title) => tally(`/argano/e/${name}/${SOURCE}`, `${title} (${SOURCE})`, true);
 
 tally(location.pathname, document.title);
 
@@ -249,6 +264,8 @@ async function openFile(file) {
     state.reference = null;
     renderDiagnosis(diagnosis);
     show('diagnosis');
+    step('file-opened', 'File opened');
+    if (diagnosis.needsReference) step('reference-needed', 'Second video needed');
   } catch (err) {
     fail(W.cannotRead(err && err.message ? say(err.message) : String(err)));
   } finally {
@@ -422,10 +439,12 @@ async function startRepair() {
     stopClock();
     renderResult(result);
     show('result');
+    step('repaired', 'Repaired');
   } catch (err) {
     stopClock();
     show('diagnosis');
     fail(reason(err));
+    step('stopped', 'Repair stopped');
   } finally {
     state.running = false;
     $('do-repair').disabled = false;
@@ -651,11 +670,12 @@ $('ref-clear').addEventListener('click', () => {
 $('do-repair').addEventListener('click', startRepair);
 $('again').addEventListener('click', reset);
 
-// The answer is the one number that says whether argano helps, so it is
-// asked once per repair and counted like a visit, with nothing from the file.
-for (const [id, answer] of [['ask-yes', 'worked'], ['ask-no', 'failed']]) {
+// The answer says whether the copy really plays, which the repair cannot see
+// for itself. Few people answer, so it is read beside the steps above and
+// never on its own.
+for (const [id, answer] of [['ask-yes', 'said-yes'], ['ask-no', 'said-no']]) {
   $(id).addEventListener('click', () => {
-    tally(`/argano/repair-${answer}`, `Repair ${answer}`, true);
+    step(answer, answer === 'said-yes' ? 'Said it plays' : 'Said it does not play');
     $('rs-ask').hidden = true;
     $('rs-thanks').hidden = false;
   });
