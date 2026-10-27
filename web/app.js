@@ -68,7 +68,12 @@ function tally(path, title, event = false) {
     .catch(() => {});
 }
 
-const step = (name, title) => tally(`/argano/e/${name}/${SOURCE}`, `${title} (${SOURCE})`, true);
+// A repair of the sample says nothing about whether argano helps people with
+// their own files, so its steps are not counted.
+const step = (name, title) => {
+  if (state.sample) return;
+  tally(`/argano/e/${name}/${SOURCE}`, `${title} (${SOURCE})`, true);
+};
 
 tally(location.pathname, document.title);
 
@@ -80,6 +85,7 @@ const state = {
   clock: null,         // interval handle for the elapsed counter
   startedAt: 0,
   url: null,           // object URL behind the save link, revoked when it goes
+  sample: false,       // the file open is the sample, not one of the visitor's
 };
 
 /* The stages the repair reports, in the order they happen, with the words a
@@ -241,7 +247,8 @@ function painted() {
 
 /* ---------------- opening a file ---------------- */
 
-async function openFile(file) {
+async function openFile(file, sample = false) {
+  state.sample = sample;
   if (state.running) {
     fail(W.busy);
     return;
@@ -650,6 +657,28 @@ $('pick-damaged').addEventListener('click', (e) => {
 $('dropzone').addEventListener('click', () => pick($('file-damaged')));
 
 $('pick-other').addEventListener('click', () => pick($('file-damaged')));
+
+/* The sample is fetched from next to this file, opened like a dropped file,
+   and given its reference straight away, so the whole repair can be watched
+   with two clicks. */
+$('try-sample').addEventListener('click', async () => {
+  const button = $('try-sample');
+  button.disabled = true;
+  try {
+    const fetchFile = async (name) => {
+      const response = await fetch(new URL(`sample/${name}`, import.meta.url));
+      if (!response.ok) throw new Error(`${response.status}`);
+      return new File([await response.blob()], `argano-sample-${name}`);
+    };
+    const [broken, reference] = await Promise.all([fetchFile('broken.mov'), fetchFile('reference.mp4')]);
+    await openFile(broken, true);
+    if (state.diagnosis) setReference(reference);
+  } catch (err) {
+    fail(W.cannotRead(err && err.message ? err.message : String(err)));
+  } finally {
+    button.disabled = false;
+  }
+});
 $('pick-ref').addEventListener('click', () => pick($('file-reference')));
 
 $('file-damaged').addEventListener('change', (e) => {

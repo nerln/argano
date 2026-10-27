@@ -776,3 +776,6 @@ p.ask { color: var(--text-muted); font-weight: 400; }
   color: var(--accent);
   font-weight: 700;
 }
+
+/* the sample, under the drop area, for someone with no broken file yet. */
+.sample { display: flex; justify-content: center; margin: 1rem 0 0; }
