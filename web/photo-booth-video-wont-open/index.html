@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<!-- written by tools/pages.mjs from the files in tools/ and web/i18n.js: change those, not this -->
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Photo Booth video won't open? Repair it free, without uploading it</title>
+<meta name="description" content="A long Photo Booth recording that shows 0:00 or that QuickTime will not open still holds every frame. argano rebuilds its index in your browser, free and without uploading the video.">
+<link rel="canonical" href="https://nerln.github.io/argano/photo-booth-video-wont-open/">
+<link rel="alternate" hreflang="en" href="https://nerln.github.io/argano/photo-booth-video-wont-open/">
+<link rel="alternate" hreflang="it" href="https://nerln.github.io/argano/it/video-photo-booth-non-si-apre/">
+<link rel="alternate" hreflang="es" href="https://nerln.github.io/argano/es/video-photo-booth-no-se-abre/">
+<link rel="alternate" hreflang="x-default" href="https://nerln.github.io/argano/photo-booth-video-wont-open/">
+<meta name="author" content="Eugenio Nerelli">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://nerln.github.io/argano/photo-booth-video-wont-open/">
+<meta property="og:title" content="Photo Booth video won't open? Repair it free, without uploading it">
+<meta property="og:description" content="A long Photo Booth recording that shows 0:00 or that QuickTime will not open still holds every frame. argano rebuilds its index in your browser, free and without uploading the video.">
+<meta name="twitter:card" content="summary">
+<meta name="color-scheme" content="light dark">
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('argano-theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='7' width='26' height='18' rx='4' fill='none' stroke='%230a64d8' stroke-width='2.4'/%3E%3Crect x='6.5' y='11' width='13' height='10' rx='1.6' fill='%230a64d8'/%3E%3C/svg%3E">
+<link rel="preload" href="../fonts/mona-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../app.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="wordmark" href="../" aria-label="argano">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="3" y="7" width="26" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <rect x="6.5" y="11" width="13" height="10" rx="1.6" fill="currentColor"/>
+      <rect x="22" y="11" width="3.6" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+    </svg>
+    <span>argano</span>
+  </a>
+  <div class="pill" role="group">
+    <svg class="pill-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+    </svg>
+    <nav class="langs" aria-label="Language"><a href="../photo-booth-video-wont-open/" lang="en" aria-current="page">EN</a><a href="../it/video-photo-booth-non-si-apre/" lang="it" hreflang="it">IT</a><a href="../es/video-photo-booth-no-se-abre/" lang="es" hreflang="es">ES</a></nav>
+    <span class="pill-rule" aria-hidden="true"></span>
+    <button class="theme" id="theme" type="button" aria-label="Switch between light and dark" title="Switch between light and dark">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+      </svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7Z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="case">
+  <h1 class="display case-title">Photo Booth video won't open</h1>
+  <p class="lead">The recording shows 0:00, or QuickTime says the file is not compatible. It usually happens to long recordings, and the video is almost always still there.</p>
+
+  <div class="case-cta">
+    <a class="btn main big" href="../?ref=guide-photo-booth">Repair it now, free</a>
+    <p class="fine">Nothing is uploaded and there is no account. The repair runs in your browser.</p>
+  </div>
+
+  <section class="case-part"><h2>What happened to the file</h2><p>A video file has two parts: the frames, written while you record, and an index that says where each frame starts, written once at the end. When Photo Booth stops before writing that index, the frames are all on disk but no player can find them.</p></section>
+  <section class="case-part"><h2>How to repair it</h2><ol class="case-steps"><li>Find the file. Photo Booth keeps its recordings in Pictures, inside Photo Booth Library: right click it in Finder, choose Show Package Contents and open the Pictures folder. Copy the broken video somewhere else before doing anything.</li><li>Record three seconds in Photo Booth on the same Mac, at the same size. Photo Booth does not write its settings inside the video, so argano reads them from this short clip.</li><li>Open argano, drop the broken file, then the short clip, and press Repair. You get a new copy that plays. Your original is only read.</li></ol></section>
+  <section class="case-part"><h2>What it cannot do</h2><p>If Photo Booth stopped before the frames reached the disk, they are not in the file and no tool can bring them back. argano tells you how much of the file is media before it starts.</p></section>
+
+  <div class="case-cta">
+    <a class="btn main" href="../?ref=guide-photo-booth">Repair it now, free</a>
+  </div>
+
+  <section class="guides" aria-labelledby="others-title">
+    <h2 class="section-title" id="others-title">Other cases</h2>
+    <ul><li><a href="../moov-atom-not-found/">"moov atom not found"</a></li><li><a href="../video-wont-play-after-recording-stopped/">The video won't play after the recording stopped</a></li></ul>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Made by <a href="https://nerln.github.io/" rel="author">Eugenio Nerelli</a>. Free and open source under the MIT licence.</p>
+  <p><a href="../privacy.html">Privacy</a> · <a href="../terms.html">Terms</a></p>
+</footer>
+
+<!-- the same theme switch and the same visit count as the tool page, without
+     loading the tool: nothing is repaired here. -->
+<script>
+  (function () {
+    document.getElementById('theme').addEventListener('click', function () {
+      var root = document.documentElement;
+      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('argano-theme', next); } catch (e) {}
+    });
+    if (location.origin !== 'https://nerln.github.io') return;
+    var q = new URLSearchParams({ p: location.pathname, t: document.title, e: 'false',
+      r: document.referrer, q: location.search, rnd: Math.random().toString(36).slice(2) });
+    fetch('https://nerln.goatcounter.com/count?' + q, { mode: 'no-cors', credentials: 'omit', keepalive: true })
+      .catch(function () {});
+  })();
+</script>
+</body>
+</html>
